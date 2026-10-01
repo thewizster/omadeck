@@ -1,0 +1,25 @@
+[workspace]
+resolver = "3"
+members = ["crates/omadeck-core", "crates/omadeckd", "crates/omadeck-gui"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+authors = ["Ryan Brady <rbrady@bluecloud.tv>"]
+repository = "https://github.com/rbrady/omadeck"
+rust-version = "1.85"
+
+[workspace.dependencies]
+omadeck-core = { path = "crates/omadeck-core" }
+anyhow = "1"
+log = "0.4"
+env_logger = "0.11"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+toml = "1"
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = true

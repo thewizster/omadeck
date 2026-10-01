@@ -1,0 +1,17 @@
+[package]
+name = "omadeckd"
+description = "omadeck daemon: drives the Elgato Stream Deck and runs key actions"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[dependencies]
+omadeck-core.workspace = true
+anyhow.workspace = true
+log.workspace = true
+env_logger.workspace = true
+image = { version = "0.25", default-features = false, features = ["png"] }
+notify = "8"
+signal-hook = "0.4"

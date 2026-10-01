@@ -1,0 +1,53 @@
+# omadeck example configuration
+# Copy to ~/.config/omadeck/config.toml, or just use the `omadeck` app.
+#
+# Keys are numbered left-to-right, top-to-bottom starting at 0.
+# Icon paths may be absolute, start with ~/, or be relative to ~/.config/omadeck/.
+
+brightness = 70
+
+[style]
+follow_theme = true          # use the active Omarchy theme's colours
+# background = "#1a1b26"     # override the default key background
+# label_color = "#c0caf5"
+# font = "JetBrainsMono Nerd Font"
+
+[[key]]
+index = 0
+label = "btop"
+icon = "/usr/share/icons/hicolor/scalable/apps/btop.svg"
+[key.action]
+type = "app"
+command = "xdg-terminal-exec btop"   # a desktop entry id (foo.desktop) or any command line
+
+[[key]]
+index = 1
+label = "Omarchy"
+icon = "/usr/share/pixmaps/omarchy.png"
+[key.action]
+type = "url"
+url = "https://omarchy.org"
+
+[[key]]
+index = 2
+label = "Workspace 1"
+[key.action]
+type = "hyprland"
+dispatch = "workspace 1"
+
+[[key]]
+index = 3
+label = "Ding"
+background = "#e8905a"
+[key.action]
+type = "sound"
+file = "/usr/share/sounds/freedesktop/stereo/complete.oga"
+volume = 0.8
+
+[[key]]
+index = 4
+label = "Backup"
+[key.action]
+type = "script"
+path = "~/bin/backup.sh"
+terminal = true              # open in a terminal so you can watch it run

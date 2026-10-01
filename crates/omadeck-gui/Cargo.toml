@@ -1,0 +1,8 @@
+[package]
+name = "omadeck-gui"
+version.workspace = true
+edition.workspace = true
+
+[[bin]]
+name = "omadeck"
+path = "src/main.rs"
