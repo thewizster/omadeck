@@ -23,8 +23,10 @@ if [[ -x bin/omadeck && -x bin/omadeckd && ! -f Cargo.toml ]]; then
   BIN_SRC=bin
   say "Using prebuilt binaries"
   missing=()
+  # Captured once: piping into `grep -q` would SIGPIPE ldconfig and trip pipefail.
+  libs=$(ldconfig -p 2>/dev/null || true)
   for lib in libgtk-4.so.1 libadwaita-1.so.0 libudev.so.1; do
-    ldconfig -p 2>/dev/null | grep -q "$lib" || missing+=("$lib")
+    [[ $libs == *"$lib"* ]] || missing+=("$lib")
   done
   if ((${#missing[@]})); then
     warn "missing ${missing[*]} — on Omarchy/Arch: sudo pacman -S --needed gtk4 libadwaita systemd-libs"

@@ -1,0 +1,46 @@
+name: Bug report
+description: Something isn't working
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for taking the time! The details below make bugs much faster to fix.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What did you do, what did you expect, and what happened instead?
+    validations:
+      required: true
+  - type: input
+    id: deck
+    attributes:
+      label: Stream Deck model
+      description: Output of `omadeckd list`
+      placeholder: "Stream Deck (V2)  serial=…  5x3 keys  72px"
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: omadeck version
+      description: Output of `omadeckd --version`
+    validations:
+      required: true
+  - type: input
+    id: system
+    attributes:
+      label: System
+      description: Omarchy version (`omarchy version`) and Hyprland version (`hyprctl version | head -1`), or your distro/compositor
+  - type: textarea
+    id: logs
+    attributes:
+      label: Daemon log
+      description: "`journalctl --user -u omadeckd -n 50 --no-pager` (remove anything private)"
+      render: text
+  - type: textarea
+    id: config
+    attributes:
+      label: Relevant config
+      description: The affected `[[key]]` blocks from `~/.config/omadeck/config.toml`
+      render: toml

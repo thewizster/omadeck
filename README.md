@@ -1,11 +1,31 @@
-# omadeck
+<h1 align="center"><img src="assets/dev.omadeck.Omadeck.svg" width="56" alt=""><br>omadeck</h1>
 
-**Elgato Stream Deck support for [Omarchy](https://omarchy.org).** Every key can launch an app, run a script, play a sound, open a website, or fire a Hyprland dispatcher. Each key gets its own icon, and the colours follow your Omarchy theme.
+<p align="center">
+  <b>Elgato Stream Deck support for <a href="https://omarchy.org">Omarchy</a>.</b><br>
+  Launch apps, run scripts, play sounds, open websites and drive Hyprland, with your theme on every key.
+</p>
+
+<p align="center">
+  <a href="https://github.com/thewizster/omadeck/actions/workflows/ci.yml"><img src="https://github.com/thewizster/omadeck/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://github.com/thewizster/omadeck/releases/latest"><img src="https://img.shields.io/github/v/release/thewizster/omadeck" alt="Latest release"></a>
+  <a href="https://aur.archlinux.org/packages/omadeck-bin"><img src="https://img.shields.io/aur/version/omadeck-bin?label=AUR" alt="AUR"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="MIT license"></a>
+</p>
+
+<p align="center">
+  <a href="https://thewizster.github.io/omadeck/"><b>Website and live demo</b></a> ·
+  <a href="#install">Install</a> ·
+  <a href="#roadmap">Roadmap</a>
+</p>
+
+<p align="center">
+  <img src="docs/demo.gif" width="720" alt="Pressing Stream Deck keys opens apps, switches workspaces and locks the screen; switching theme recolours every key">
+</p>
 
 Written in Rust: a tiny background daemon drives the hardware, and a GTK4/libadwaita app lays out your keys.
 
 <p align="center">
-  <img src="docs/configurator.png" width="560" alt="The omadeck configurator">
+  <img src="docs/configurator.png" width="480" alt="The omadeck configurator">
 </p>
 
 ## Features
@@ -25,7 +45,6 @@ Written in Rust: a tiny background daemon drives the hardware, and a GTK4/libadw
 - **Live editing.** Changes land on the hardware as you type. Drag keys to rearrange them. Press a physical key to jump to it in the editor.
 - **Robust.** Reconnects after unplug/replug, and a typo in a hand-edited config keeps the last good layout on the deck. Uses about 9 MB of RAM and 0% CPU at idle.
 - **Portable.** Everything lives in `~/.config/omadeck/`, and imported icons are copied into it, so you can copy that folder to another machine.
-- Works with the Stream Deck Original/V2/MK.2, Mini, XL, Neo and + keys (via the [`elgato-streamdeck`](https://crates.io/crates/elgato-streamdeck) crate).
 
 <p align="center">
   <img src="docs/deck.png" width="560" alt="Starter layout as rendered on the deck">
@@ -33,7 +52,26 @@ Written in Rust: a tiny background daemon drives the hardware, and a GTK4/libadw
 
 ## Install
 
-### From source (any Omarchy machine)
+### AUR (recommended)
+
+```bash
+yay -S omadeck-bin          # prebuilt
+# or: yay -S omadeck        # build from source
+systemctl --user enable --now omadeckd.service
+```
+
+The package installs a udev rule, so if the deck isn't detected straight away, replug it once.
+
+### Release tarball (no Rust needed)
+
+Download `omadeck-<version>-x86_64-linux.tar.gz` from the [latest release](https://github.com/thewizster/omadeck/releases/latest), check it against `SHA256SUMS`, then:
+
+```bash
+tar xzf omadeck-*-x86_64-linux.tar.gz && cd omadeck-*-x86_64-linux
+scripts/install.sh
+```
+
+### From source
 
 ```bash
 # Rust toolchain, if you don't have one yet
@@ -52,13 +90,21 @@ The script:
 
 To remove omadeck, run `scripts/uninstall.sh`. It leaves your config in place.
 
-### Arch package
+### Supported hardware
 
-There's a `PKGBUILD` in [`packaging/arch`](packaging/arch). After installing it, run:
+omadeck speaks to decks through the [`elgato-streamdeck`](https://crates.io/crates/elgato-streamdeck) crate.
 
-```bash
-systemctl --user enable --now omadeckd.service
-```
+| Model | Status |
+|-------|--------|
+| Stream Deck (V2), 15 keys | ✅ Tested |
+| Stream Deck Original / MK.2, 15 keys | Expected to work |
+| Stream Deck Mini / Mini MK.2, 6 keys | Expected to work |
+| Stream Deck XL / XL V2, 32 keys | Expected to work |
+| Stream Deck Neo, 8 keys | Keys expected to work; info screen and touch keys unsupported |
+| Stream Deck +, 8 keys | Keys expected to work; dials and touch strip unsupported |
+| Stream Deck Pedal | Not supported (no display) |
+
+Got one of the untested models? Please [file a hardware report](https://github.com/thewizster/omadeck/issues/new?template=hardware_report.yml), whether it works or not.
 
 ## Use it
 
@@ -129,8 +175,8 @@ crates/
   omadeck-core/   config, Omarchy theme, key renderer, actions, IPC types
   omadeckd/       daemon: owns the USB device, paints keys, runs actions
   omadeck-gui/    GTK4 + libadwaita configurator (binary: omadeck)
-packaging/        systemd unit, udev rule, desktop entry, PKGBUILD
-scripts/          install / uninstall
+packaging/        systemd unit, udev rule, desktop entry, AUR PKGBUILDs
+scripts/          install / uninstall / package a release
 site/             project website: static HTML/CSS/JS with an interactive demo
 ```
 
@@ -144,6 +190,23 @@ site/             project website: static HTML/CSS/JS with an interactive demo
 - **Deck found but can't be opened**: install the udev rule (`packaging/70-omadeck.rules` → `/etc/udev/rules.d/`), then replug the deck.
 - **Only one program can own the deck.** Quit the Elgato software or other tools such as `streamdeck-ui` first.
 
+## Roadmap
+
+Ideas, roughly in order. Want one sooner? Open an issue or a PR; see [CONTRIBUTING](CONTRIBUTING.md).
+
+- [ ] **Pages and folders**: more than 15 keys' worth of actions
+- [ ] **Toggle keys** with on/off faces (mute, night light, …) that reflect real state
+- [ ] **Multi-actions**: run several actions from one key, with optional delays
+- [ ] **Stream Deck +**: dials and touch strip (volume, brightness, scrubbing)
+- [ ] **OBS** scene and recording keys via obs-websocket
+- [ ] **Live keys** that show a clock, CPU usage or the active workspace
+- [ ] **Multiple decks** with a layout per serial number
+- [ ] **Import/export** of shareable layouts
+
+## How this was built
+
+omadeck was built on Omarchy by Raymond Brady together with Claude Code (Anthropic's AI coding agent), as a showcase of what that pairing can do. Every change goes through the same checks as any contribution: `rustfmt`, `clippy -D warnings`, tests, CI and testing on real hardware.
+
 ## License
 
-MIT. Built on Omarchy by Raymond Brady with Claude.
+MIT © Raymond Brady

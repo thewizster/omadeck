@@ -244,6 +244,7 @@ p { text-wrap: pretty; }
   text-shadow: 0 1px 0 rgba(0,0,0,.55);
   transition: color .4s;
 }
+.key .lbl.long { font-size: 1.75cqi; } /* the real renderer shrinks long labels to fit */
 .key .big { font-size: 6cqi; font-weight: 700; color: var(--fg); transition: color .4s; }
 .key .hint {
   position: absolute; top: 6%; right: 9%; z-index: 2;

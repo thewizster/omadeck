@@ -1,0 +1,23 @@
+name: Hardware report
+description: Tell us omadeck works (or doesn't) on your Stream Deck model
+labels: [hardware]
+body:
+  - type: input
+    id: deck
+    attributes:
+      label: Model
+      description: Output of `omadeckd list`
+    validations:
+      required: true
+  - type: dropdown
+    id: works
+    attributes:
+      label: Does it work?
+      options: ["Yes, everything", "Partly", "No"]
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes
+      description: Anything odd? Key images rotated, presses not detected, brightness…

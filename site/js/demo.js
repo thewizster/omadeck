@@ -74,7 +74,7 @@ const keyEls = KEYS.map((k, i) => {
   b.setAttribute("aria-label", `Key ${i + 1}: ${k.label ?? "Workspace " + k.big}`);
   const face = k.big
     ? `<span class="big">${k.big}</span>`
-    : `<svg aria-hidden="true"><use href="#i-${k.icon}"/></svg><span class="lbl">${k.label}</span>`;
+    : `<svg aria-hidden="true"><use href="#i-${k.icon}"/></svg><span class="lbl${k.label.length > 8 ? " long" : ""}">${k.label}</span>`;
   b.innerHTML = `<span class="face">${face}</span><span class="hint" aria-hidden="true">${KEYBOARD[i].toUpperCase()}</span>`;
   b.addEventListener("pointerdown", (e) => {
     if (e.button !== 0) return;

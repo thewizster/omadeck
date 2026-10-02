@@ -10,7 +10,8 @@ depends=('gtk4' 'libadwaita' 'systemd-libs' 'pipewire' 'fontconfig')
 makedepends=('cargo' 'git')
 optdepends=('uwsm: launch apps in their own systemd scope (Omarchy default)'
             'hyprland: Hyprland dispatcher actions')
-options=('!debug')  # binaries are already stripped (release profile)
+# !lto: makepkg's -flto would turn hidapi's bundled C code into GCC LTO bytecode rust-lld can't link.
+options=('!debug' '!lto')
 install=omadeck.install
 source=("git+$url.git#tag=v$pkgver")
 sha256sums=('SKIP')

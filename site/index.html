@@ -8,8 +8,12 @@
   <meta name="theme-color" content="#1a1b26">
   <meta property="og:title" content="omadeck — Elgato Stream Deck for Omarchy">
   <meta property="og:description" content="Fifteen keys. Zero friction. A Rust daemon + GTK4 app that makes the Stream Deck feel native on Omarchy.">
-  <meta property="og:image" content="assets/deck.png">
+  <meta property="og:image" content="https://thewizster.github.io/omadeck/assets/og.png">
+  <meta property="og:image:width" content="1280">
+  <meta property="og:image:height" content="640">
+  <meta property="og:url" content="https://thewizster.github.io/omadeck/">
   <meta property="og:type" content="website">
+  <meta name="twitter:card" content="summary_large_image">
   <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
   <!-- JetBrains Mono is self-hosted (SIL OFL 1.1, see assets/fonts/OFL.txt): no third-party requests. -->
   <link rel="preload" href="assets/fonts/JetBrainsMono-latin.woff2" as="font" type="font/woff2" crossorigin>
@@ -345,13 +349,14 @@
     </header>
     <ol class="steps">
       <li>
-        <h3><span>1</span> Get a Rust toolchain</h3>
-        <div class="cmd"><code>mise use -g rust@latest</code><button class="copy" aria-label="Copy command"><svg><use href="#i-copy"/></svg></button></div>
+        <h3><span>1</span> Install from the AUR</h3>
+        <div class="cmd"><code>yay -S omadeck-bin</code><button class="copy" aria-label="Copy command"><svg><use href="#i-copy"/></svg></button></div>
+        <p class="small muted">Prebuilt binaries. Prefer to build it yourself? Use <code>yay -S omadeck</code>, or clone the repo and run <code>scripts/install.sh</code>.</p>
       </li>
       <li>
-        <h3><span>2</span> Clone &amp; install</h3>
-        <div class="cmd"><code>git clone https://github.com/thewizster/omadeck &amp;&amp; cd omadeck &amp;&amp; scripts/install.sh</code><button class="copy" aria-label="Copy command"><svg><use href="#i-copy"/></svg></button></div>
-        <p class="small muted">Builds a release binary, adds a launcher entry, enables the <code>omadeckd</code> user service, and installs a udev rule only if your user can't already reach the deck.</p>
+        <h3><span>2</span> Start the daemon</h3>
+        <div class="cmd"><code>systemctl --user enable --now omadeckd</code><button class="copy" aria-label="Copy command"><svg><use href="#i-copy"/></svg></button></div>
+        <p class="small muted">A tiny user service that starts with your desktop. If the deck isn't detected straight away, replug it once so the udev rule applies.</p>
       </li>
       <li>
         <h3><span>3</span> Open omadeck</h3>
