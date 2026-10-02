@@ -1,0 +1,4 @@
+# Give the logged-in user access to Elgato Stream Decks (vendor 0fd9) without root.
+# Must sort before 73-seat-late.rules so the uaccess tag is applied.
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="0fd9", TAG+="uaccess"
+SUBSYSTEM=="usb", ATTRS{idVendor}=="0fd9", TAG+="uaccess"

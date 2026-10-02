@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=omadeck
+GenericName=Stream Deck Configurator
+Comment=Set up your Elgato Stream Deck: launch apps, run scripts, play sounds, open websites
+Exec=omadeck
+Icon=dev.omadeck.Omadeck
+Terminal=false
+Categories=Utility;Settings;HardwareSettings;
+Keywords=stream;deck;elgato;streamdeck;macro;hotkey;buttons;
+StartupNotify=true

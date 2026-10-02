@@ -145,4 +145,17 @@ mod tests {
         assert_eq!(host_of("https://u@a.b.com:8080/p?q").as_deref(), Some("a.b.com"));
         assert_eq!(host_of("nonsense"), None);
     }
+
+    /// Needs network: `cargo test -p omadeck-gui -- --ignored`
+    #[test]
+    #[ignore]
+    fn favicon_fetch() {
+        let dir = std::env::temp_dir().join(format!("omadeck-test-{}", std::process::id()));
+        // SAFETY: single-threaded test setup before any other env access.
+        unsafe { std::env::set_var("XDG_CONFIG_HOME", &dir) };
+        let rel = fetch_favicon("github.com").expect("fetch");
+        let img = image::open(paths::resolve(&rel)).expect("decodes");
+        assert!(img.width() >= 96);
+        let _ = fs::remove_dir_all(dir);
+    }
 }

@@ -137,11 +137,14 @@ fn run() -> Result<()> {
         }
         if reload_at.is_some_and(|t| Instant::now() >= t) {
             reload_at = None;
-            let new_cfg = load_config();
-            renderer.update_style(&new_cfg.style);
+            // A typo while hand-editing shouldn't wipe the deck: keep the last good config.
+            match Config::load() {
+                Ok(new_cfg) => cfg = new_cfg,
+                Err(e) => log::error!("{e:#}; keeping the previous config"),
+            }
+            renderer.update_style(&cfg.style);
             renderer.reload_theme();
             renderer.clear_cache();
-            cfg = new_cfg;
             log::info!("reloaded config (theme: {})", renderer.theme.name);
             if let Some(d) = &deck
                 && let Err(e) = paint_all(d, &cfg, &mut renderer)
