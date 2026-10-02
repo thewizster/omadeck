@@ -1,10 +1,10 @@
-# Maintainer: Raymond Brady <rbrady@bluecloud.tv>
+# Maintainer: Raymond Brady (github.com/thewizster)
 pkgname=omadeck
 pkgver=0.1.0
 pkgrel=1
 pkgdesc="Elgato Stream Deck for Omarchy: launch apps, run scripts, play sounds and open websites"
 arch=('x86_64' 'aarch64')
-url="https://github.com/rbrady/omadeck"
+url="https://github.com/thewizster/omadeck"
 license=('MIT')
 depends=('gtk4' 'libadwaita' 'systemd-libs' 'pipewire' 'fontconfig')
 makedepends=('cargo' 'git')

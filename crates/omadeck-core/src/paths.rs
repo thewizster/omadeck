@@ -30,10 +30,15 @@ pub fn icons_dir() -> PathBuf {
     config_dir().join("icons")
 }
 
-/// Unix socket the daemon publishes events on.
-pub fn socket_path() -> PathBuf {
-    let dir = env::var_os("XDG_RUNTIME_DIR").map(PathBuf::from).unwrap_or_else(env::temp_dir);
-    dir.join("omadeck.sock")
+/// Unix socket the daemon publishes events on: `$XDG_RUNTIME_DIR/omadeck.sock`.
+///
+/// There is deliberately no fallback: the runtime dir is private to the user (0700), while a
+/// shared location such as `/tmp` would let other local users squat on or spoof the socket.
+pub fn socket_path() -> anyhow::Result<PathBuf> {
+    match env::var_os("XDG_RUNTIME_DIR") {
+        Some(dir) if !dir.is_empty() => Ok(PathBuf::from(dir).join("omadeck.sock")),
+        _ => anyhow::bail!("XDG_RUNTIME_DIR is not set; omadeck needs a private runtime directory for its socket"),
+    }
 }
 
 /// Directory Omarchy keeps the active theme in.

@@ -6,7 +6,7 @@ members = ["crates/omadeck-core", "crates/omadeckd", "crates/omadeck-gui"]
 version = "0.1.0"
 edition = "2024"
 license = "MIT"
-authors = ["Raymond Brady <rbrady@bluecloud.tv>]
+authors = ["Raymond Brady"]
 repository = "https://github.com/thewizster/omadeck"
 rust-version = "1.85"
 

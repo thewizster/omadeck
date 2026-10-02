@@ -245,7 +245,7 @@ fn action_rows(app: &Rc<App>, i: u8, key: &KeyConfig, group: &adw::PreferencesGr
 
             let fetch_row = adw::ActionRow::builder()
                 .title("Site icon")
-                .subtitle("Download the website's icon for this key")
+                .subtitle("Asks the website for its icon. If it has none, DuckDuckGo's icon service is used instead")
                 .build();
             let fetch = gtk::Button::builder().label("Fetch").valign(gtk::Align::Center).build();
             let a = app.clone();
@@ -267,7 +267,10 @@ fn action_rows(app: &Rc<App>, i: u8, key: &KeyConfig, group: &adw::PreferencesGr
                     btn.set_sensitive(true);
                     btn.set_label("Fetch");
                     match res {
-                        Ok(Ok(icon)) => {
+                        Ok(Ok((icon, source))) => {
+                            if source == media::IconSource::DuckDuckGo {
+                                a.toast("The site had no usable icon, so this one came from DuckDuckGo");
+                            }
                             let name = media::host_of(&url).map(|h| site_name(&h)).unwrap_or_default();
                             a.edit(i, |k| {
                                 k.icon = Some(icon);

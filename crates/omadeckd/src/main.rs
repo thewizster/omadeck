@@ -88,8 +88,9 @@ fn main() {
 }
 
 fn run() -> Result<()> {
-    if std::os::unix::net::UnixStream::connect(paths::socket_path()).is_ok() {
-        anyhow::bail!("another omadeckd is already running ({})", paths::socket_path().display());
+    let socket = paths::socket_path()?;
+    if std::os::unix::net::UnixStream::connect(&socket).is_ok() {
+        anyhow::bail!("another omadeckd is already running ({})", socket.display());
     }
 
     let term = Arc::new(AtomicBool::new(false));
@@ -97,7 +98,7 @@ fn run() -> Result<()> {
         signal_hook::flag::register(sig, term.clone())?;
     }
 
-    let hub = Hub::start(paths::socket_path())?;
+    let hub = Hub::start(socket)?;
 
     // Watch the config dir and Omarchy's theme state for changes.
     std::fs::create_dir_all(paths::config_dir())?;

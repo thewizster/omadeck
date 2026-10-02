@@ -42,6 +42,6 @@ impl Event {
 
 /// Connect to a running daemon and iterate its events. Ends when the daemon goes away.
 pub fn subscribe() -> Result<impl Iterator<Item = Event>> {
-    let stream = UnixStream::connect(paths::socket_path())?;
+    let stream = UnixStream::connect(paths::socket_path()?)?;
     Ok(BufReader::new(stream).lines().map_while(|l| l.ok()).filter_map(|l| serde_json::from_str(&l).ok()))
 }

@@ -25,7 +25,8 @@ done
 
 if [[ -z ${SKIP_BUILD:-} ]]; then
   say "Building (release)…"
-  cargo build --release --locked 2>/dev/null || cargo build --release
+  # --locked: build exactly the dependency versions pinned in Cargo.lock, never newer ones.
+  cargo build --release --locked
 fi
 
 say "Installing binaries to $BINDIR"
@@ -56,11 +57,29 @@ if [[ -f /etc/udev/rules.d/70-omadeck.rules ]]; then
   needs_rule=0
 fi
 if ((needs_rule)); then
-  say "Installing udev rule for Stream Deck access (needs sudo)"
-  if sudo install -Dm644 packaging/70-omadeck.rules /etc/udev/rules.d/70-omadeck.rules; then
-    sudo udevadm control --reload-rules && sudo udevadm trigger --attr-match=idVendor=0fd9 || true
+  rule_cmds=(
+    "sudo install -Dm644 packaging/70-omadeck.rules /etc/udev/rules.d/70-omadeck.rules"
+    "sudo udevadm control --reload-rules"
+    "sudo udevadm trigger --attr-match=idVendor=0fd9"
+  )
+  say "Your user can't open the Stream Deck yet. omadeck can install a udev rule that"
+  say "grants the logged-in user access to Elgato devices only (vendor 0fd9):"
+  echo
+  sed 's/^/      /' packaging/70-omadeck.rules
+  echo
+  say "This runs, as root:"
+  printf '      %s\n' "${rule_cmds[@]}"
+  answer=n
+  if [[ -t 0 ]]; then
+    read -rp "    Run these now? [y/N] " answer
+  fi
+  if [[ $answer == [yY]* ]]; then
+    sudo install -Dm644 packaging/70-omadeck.rules /etc/udev/rules.d/70-omadeck.rules &&
+      sudo udevadm control --reload-rules &&
+      sudo udevadm trigger --attr-match=idVendor=0fd9 ||
+      warn "Installing the udev rule failed; run the commands above yourself."
   else
-    warn "Skipped. Install it later with: sudo install -Dm644 packaging/70-omadeck.rules /etc/udev/rules.d/"
+    warn "Skipped. Run the commands above yourself, then replug the deck."
   fi
 else
   say "Stream Deck is already accessible; no udev rule needed"

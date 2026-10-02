@@ -489,7 +489,7 @@ impl App {
             .version(env!("CARGO_PKG_VERSION"))
             .comments("Elgato Stream Deck for Omarchy: launch apps, run scripts, play sounds and open websites — with your theme on every key.")
             .license_type(gtk::License::MitX11)
-            .website("https://github.com/rbrady/omadeck")
+            .website("https://github.com/thewizster/omadeck")
             .build();
         about.present(Some(&self.window));
     }

@@ -1,6 +1,23 @@
 /* omadeck — site styles. Every colour derives from ten Omarchy palette tokens set on :root,
    so switching theme in the demo re-skins the whole page (like `omarchy theme set`). */
 
+/* JetBrains Mono, self-hosted (SIL Open Font License 1.1 — assets/fonts/OFL.txt).
+   Variable fonts: one file covers every weight. */
+@font-face {
+  font-family: "JetBrains Mono";
+  src: url("../assets/fonts/JetBrainsMono-latin.woff2") format("woff2");
+  font-weight: 100 800;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "JetBrains Mono";
+  src: url("../assets/fonts/JetBrainsMono-Italic-latin.woff2") format("woff2");
+  font-weight: 100 800;
+  font-style: italic;
+  font-display: swap;
+}
+
 :root {
   /* tokyo-night (overridden by js/demo.js) */
   --bg: #1a1b26;

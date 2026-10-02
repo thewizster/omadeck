@@ -14,7 +14,7 @@ Written in Rust: a tiny background daemon drives the hardware, and a GTK4/libadw
   - **Launch app:** pick from your installed apps; the app's icon and name come along. Apps launch through `uwsm-app`, the same way Omarchy launches them.
   - **Run script:** optionally in a terminal so you can watch the output.
   - **Play sound:** through PipeWire (`pw-play`), with per-key volume.
-  - **Open website:** one click fetches the site's icon for the key.
+  - **Open website:** one click fetches the site's icon for the key. The icon is requested from the site itself; DuckDuckGo's icon service is used only if the site offers none, and the app tells you when that happens.
   - **Hyprland:** any dispatcher. Lua (`hl.dsp.focus({ workspace = "3" })`) is passed straight to `hyprctl dispatch`. Classic syntax (`workspace 3`, `movetoworkspace 2`, `togglefloating`, `fullscreen`, `killactive`, `exec …`) is translated automatically on Hyprland versions that use a Lua config.
 - **Icons your way**
   - PNG, JPEG, SVG, WebP or GIF images.
@@ -39,16 +39,16 @@ Written in Rust: a tiny background daemon drives the hardware, and a GTK4/libadw
 # Rust toolchain, if you don't have one yet
 mise use -g rust@latest
 
-git clone https://github.com/rbrady/omadeck && cd omadeck
+git clone https://github.com/thewizster/omadeck && cd omadeck
 scripts/install.sh
 ```
 
 The script:
 
-- builds a release binary and installs `omadeck` + `omadeckd` to `~/.local/bin`;
+- builds a release binary (pinned to `Cargo.lock`) and installs `omadeck` + `omadeckd` to `~/.local/bin`;
 - adds a launcher entry;
 - enables the `omadeckd` systemd **user** service, which starts with your graphical session;
-- if your user can't already open the deck, installs a udev rule (asks for sudo).
+- if your user can't already open the deck, shows the udev rule and the exact `sudo` commands, and runs them only if you answer `y`.
 
 To remove omadeck, run `scripts/uninstall.sh`. It leaves your config in place.
 

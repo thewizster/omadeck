@@ -1,6 +1,6 @@
 [Unit]
 Description=omadeck Stream Deck daemon
-Documentation=https://github.com/rbrady/omadeck
+Documentation=https://github.com/thewizster/omadeck
 PartOf=graphical-session.target
 After=graphical-session.target
 
