@@ -4,6 +4,9 @@
 #
 #   PREFIX=~/.local scripts/install.sh       (default)
 #   SKIP_BUILD=1 scripts/install.sh          (use an existing release build)
+#
+# Run from a release tarball (which ships prebuilt binaries in bin/), it skips the
+# build entirely and needs no Rust toolchain.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
@@ -15,23 +18,37 @@ UNITDIR="${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user"
 say() { printf '\033[1;36m==>\033[0m %s\n' "$*"; }
 warn() { printf '\033[1;33m==>\033[0m %s\n' "$*"; }
 
-if ! command -v cargo >/dev/null; then
-  warn "cargo not found. Install Rust first, e.g.:  mise use -g rust@latest"
-  exit 1
-fi
-for pkg in gtk4 libadwaita-1 libudev; do
-  pkg-config --exists "$pkg" 2>/dev/null || { warn "missing $pkg — on Omarchy/Arch: sudo pacman -S --needed gtk4 libadwaita systemd-libs"; exit 1; }
-done
-
-if [[ -z ${SKIP_BUILD:-} ]]; then
-  say "Building (release)…"
-  # --locked: build exactly the dependency versions pinned in Cargo.lock, never newer ones.
-  cargo build --release --locked
+# Release tarballs ship prebuilt binaries in bin/; a source checkout builds them.
+if [[ -x bin/omadeck && -x bin/omadeckd && ! -f Cargo.toml ]]; then
+  BIN_SRC=bin
+  say "Using prebuilt binaries"
+  missing=()
+  for lib in libgtk-4.so.1 libadwaita-1.so.0 libudev.so.1; do
+    ldconfig -p 2>/dev/null | grep -q "$lib" || missing+=("$lib")
+  done
+  if ((${#missing[@]})); then
+    warn "missing ${missing[*]} — on Omarchy/Arch: sudo pacman -S --needed gtk4 libadwaita systemd-libs"
+    exit 1
+  fi
+else
+  BIN_SRC=target/release
+  if ! command -v cargo >/dev/null; then
+    warn "cargo not found. Install Rust first, e.g.:  mise use -g rust@latest"
+    exit 1
+  fi
+  for pkg in gtk4 libadwaita-1 libudev; do
+    pkg-config --exists "$pkg" 2>/dev/null || { warn "missing $pkg — on Omarchy/Arch: sudo pacman -S --needed gtk4 libadwaita systemd-libs"; exit 1; }
+  done
+  if [[ -z ${SKIP_BUILD:-} ]]; then
+    say "Building (release)…"
+    # --locked: build exactly the dependency versions pinned in Cargo.lock, never newer ones.
+    cargo build --release --locked
+  fi
 fi
 
 say "Installing binaries to $BINDIR"
-install -Dm755 target/release/omadeck "$BINDIR/omadeck"
-install -Dm755 target/release/omadeckd "$BINDIR/omadeckd"
+install -Dm755 "$BIN_SRC/omadeck" "$BINDIR/omadeck"
+install -Dm755 "$BIN_SRC/omadeckd" "$BINDIR/omadeckd"
 
 say "Installing desktop entry and icon"
 install -Dm644 packaging/dev.omadeck.Omadeck.desktop "$DATADIR/applications/dev.omadeck.Omadeck.desktop"
