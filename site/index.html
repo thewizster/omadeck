@@ -1,0 +1,378 @@
+<!doctype html>
+<html lang="en" data-theme="tokyo-night">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>omadeck — Elgato Stream Deck for Omarchy</title>
+  <meta name="description" content="omadeck turns your Elgato Stream Deck into a native part of Omarchy: launch apps, run scripts, play sounds, open websites and drive Hyprland — with your theme on every key.">
+  <meta name="theme-color" content="#1a1b26">
+  <meta property="og:title" content="omadeck — Elgato Stream Deck for Omarchy">
+  <meta property="og:description" content="Fifteen keys. Zero friction. A Rust daemon + GTK4 app that makes the Stream Deck feel native on Omarchy.">
+  <meta property="og:image" content="assets/deck.png">
+  <meta property="og:type" content="website">
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,700;0,800;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <script src="js/demo.js" defer></script>
+</head>
+<body>
+
+<!-- Icon sprite: every key face and UI glyph on the page. Drawn for omadeck. -->
+<svg class="sprite" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+  <defs>
+    <linearGradient id="g-term" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4b5263"/><stop offset="1" stop-color="#262a33"/></linearGradient>
+    <linearGradient id="g-globe" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7dd3fc"/><stop offset="1" stop-color="#3b82f6"/></linearGradient>
+    <linearGradient id="g-folder" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#60a5fa"/><stop offset="1" stop-color="#2563eb"/></linearGradient>
+    <linearGradient id="g-shot" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#818cf8"/><stop offset="1" stop-color="#4f46e5"/></linearGradient>
+    <linearGradient id="g-wall" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#38bdf8"/><stop offset="1" stop-color="#1d4ed8"/></linearGradient>
+    <linearGradient id="g-lock" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fb923c"/><stop offset="1" stop-color="#ea580c"/></linearGradient>
+  </defs>
+  <symbol id="i-terminal" viewBox="0 0 64 64">
+    <rect x="4" y="10" width="56" height="44" rx="7" fill="url(#g-term)"/>
+    <rect x="4" y="10" width="56" height="10" rx="7" fill="#5c6370"/><rect x="4" y="16" width="56" height="4" fill="#5c6370"/>
+    <path d="M14 30l8 6-8 6" fill="none" stroke="#e5e7eb" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M27 43h14" stroke="#e5e7eb" stroke-width="4" stroke-linecap="round"/>
+  </symbol>
+  <symbol id="i-browser" viewBox="0 0 64 64">
+    <circle cx="32" cy="32" r="26" fill="url(#g-globe)"/>
+    <g fill="none" stroke="#eaf6ff" stroke-width="2.6" opacity=".9">
+      <ellipse cx="32" cy="32" rx="11" ry="26"/><path d="M6 32h52M10 19h44M10 45h44"/>
+    </g>
+  </symbol>
+  <symbol id="i-files" viewBox="0 0 64 64">
+    <path d="M6 18a5 5 0 0 1 5-5h14l6 6h22a5 5 0 0 1 5 5v4H6z" fill="#1d4ed8"/>
+    <rect x="6" y="22" width="52" height="32" rx="5" fill="url(#g-folder)"/>
+    <rect x="24" y="31" width="16" height="3.5" rx="1.75" fill="#dbeafe"/>
+  </symbol>
+  <symbol id="i-shot" viewBox="0 0 64 64">
+    <rect x="8" y="8" width="48" height="48" rx="9" fill="url(#g-shot)"/>
+    <rect x="17" y="18" width="26" height="22" fill="none" stroke="#e0e7ff" stroke-width="2.6" stroke-dasharray="4 3"/>
+    <path d="M46 38v14M39 45h14" stroke="#fff" stroke-width="3.4" stroke-linecap="round"/>
+  </symbol>
+  <symbol id="i-web" viewBox="0 0 64 64">
+    <rect x="6" y="8" width="52" height="44" rx="6" fill="none" stroke="currentColor" stroke-width="4"/>
+    <path d="M6 20h52" stroke="currentColor" stroke-width="4"/>
+    <circle cx="13" cy="14" r="1.8" fill="currentColor"/><circle cx="19" cy="14" r="1.8" fill="currentColor"/>
+    <path d="M20 33l-5 5 5 5M44 33l5 5-5 5M35 29l-6 18" fill="none" stroke="currentColor" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"/>
+  </symbol>
+  <symbol id="i-mute" viewBox="0 0 64 64">
+    <path d="M8 24h10l14-12v40L18 40H8z" fill="currentColor"/>
+    <path d="M42 24l16 16M58 24L42 40" stroke="currentColor" stroke-width="5" stroke-linecap="round"/>
+  </symbol>
+  <symbol id="i-sound" viewBox="0 0 64 64">
+    <path d="M8 24h10l14-12v40L18 40H8z" fill="currentColor"/>
+    <path d="M41 23a13 13 0 0 1 0 18M47 16a22 22 0 0 1 0 32" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round"/>
+  </symbol>
+  <symbol id="i-moon" viewBox="0 0 64 64">
+    <path d="M38 10a24 24 0 1 0 16 38A20 20 0 0 1 38 10z" fill="currentColor"/>
+    <path d="M46 8l2 5 5 2-5 2-2 5-2-5-5-2 5-2zM54 26l1.4 3.6L59 31l-3.6 1.4L54 36l-1.4-3.6L49 31l3.6-1.4z" fill="currentColor"/>
+  </symbol>
+  <symbol id="i-wall" viewBox="0 0 64 64">
+    <rect x="6" y="10" width="52" height="44" rx="6" fill="url(#g-wall)"/>
+    <circle cx="44" cy="22" r="5" fill="#fde68a"/>
+    <path d="M6 46l15-15 11 11 8-8 18 16v-1a5 5 0 0 1-5 5H11a5 5 0 0 1-5-5z" fill="#0f2a6b" opacity=".85"/>
+  </symbol>
+  <symbol id="i-ding" viewBox="0 0 64 64">
+    <rect x="12" y="6" width="40" height="52" rx="5" fill="#f8fafc"/>
+    <path d="M26 44V22l16-4v22" fill="none" stroke="#ec4899" stroke-width="3.4" stroke-linejoin="round"/>
+    <circle cx="22" cy="44" r="5" fill="#ec4899"/><circle cx="38" cy="40" r="5" fill="#ec4899"/>
+  </symbol>
+  <symbol id="i-lock" viewBox="0 0 64 64">
+    <circle cx="32" cy="32" r="28" fill="url(#g-lock)"/>
+    <path d="M24 29v-5a8 8 0 0 1 16 0v5" fill="none" stroke="#fff" stroke-width="4"/>
+    <rect x="20" y="29" width="24" height="18" rx="3" fill="#fff"/>
+    <circle cx="32" cy="37" r="2.6" fill="#ea580c"/><path d="M32 38v4" stroke="#ea580c" stroke-width="2.6" stroke-linecap="round"/>
+  </symbol>
+  <symbol id="i-deck" viewBox="0 0 64 64">
+    <rect x="4" y="12" width="56" height="40" rx="9" fill="none" stroke="currentColor" stroke-width="4"/>
+    <g fill="currentColor"><rect x="13" y="21" width="9" height="9" rx="2"/><rect x="27.5" y="21" width="9" height="9" rx="2"/><rect x="42" y="21" width="9" height="9" rx="2"/><rect x="13" y="34" width="9" height="9" rx="2"/><rect x="27.5" y="34" width="9" height="9" rx="2"/><rect x="42" y="34" width="9" height="9" rx="2"/></g>
+  </symbol>
+  <symbol id="i-bolt" viewBox="0 0 64 64"><path d="M36 4L12 36h16l-4 24 24-32H32z" fill="currentColor"/></symbol>
+  <symbol id="i-palette" viewBox="0 0 64 64"><path d="M32 6C17 6 6 17 6 31c0 13 11 23 22 23 4 0 6-3 4-6-2-4 0-8 5-8h8c7 0 13-6 13-13C58 15 46 6 32 6z" fill="currentColor"/><g fill="var(--bg, #1a1b26)"><circle cx="20" cy="28" r="4"/><circle cx="28" cy="17" r="4"/><circle cx="41" cy="17" r="4"/><circle cx="48" cy="28" r="4"/></g></symbol>
+  <symbol id="i-image" viewBox="0 0 64 64"><rect x="6" y="10" width="52" height="44" rx="6" fill="none" stroke="currentColor" stroke-width="4"/><circle cx="22" cy="25" r="5" fill="currentColor"/><path d="M8 48l16-14 10 9 8-7 14 12" fill="none" stroke="currentColor" stroke-width="4" stroke-linejoin="round"/></symbol>
+  <symbol id="i-feather" viewBox="0 0 64 64"><path d="M52 8C30 8 16 22 14 44l-6 12 4 2 6-12c22-2 34-16 34-38z" fill="currentColor"/></symbol>
+  <symbol id="i-box" viewBox="0 0 64 64"><path d="M32 4l26 13v30L32 60 6 47V17z" fill="none" stroke="currentColor" stroke-width="4" stroke-linejoin="round"/><path d="M6 17l26 13 26-13M32 30v30" fill="none" stroke="currentColor" stroke-width="4" stroke-linejoin="round"/></symbol>
+  <symbol id="i-hand" viewBox="0 0 64 64"><path d="M24 30V12a4 4 0 0 1 8 0v16-20a4 4 0 0 1 8 0v20-14a4 4 0 0 1 8 0v26c0 12-8 20-18 20-8 0-12-4-16-10l-8-12a4 4 0 0 1 6-5l4 4z" fill="currentColor"/></symbol>
+  <symbol id="i-terminal-line" viewBox="0 0 64 64"><rect x="6" y="10" width="52" height="44" rx="6" fill="none" stroke="currentColor" stroke-width="4"/><path d="M16 26l8 6-8 6M30 40h16" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="13" height="13" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M4 12l5 5L20 6" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-gh" viewBox="0 0 24 24"><path fill="currentColor" d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.04-.71.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.76 2.7 1.25 3.36.96.1-.75.4-1.25.73-1.54-2.55-.29-5.24-1.28-5.24-5.68 0-1.26.45-2.28 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.83 1.19 3.09 0 4.41-2.69 5.38-5.25 5.67.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5z"/></symbol>
+</svg>
+
+<a class="skip" href="#demo">Skip to the live demo</a>
+
+<header class="nav">
+  <a class="brand" href="#top" aria-label="omadeck home">
+    <img src="assets/favicon.svg" alt="" width="30" height="30">
+    <span>omadeck</span>
+  </a>
+  <nav aria-label="Sections">
+    <a href="#demo">Demo</a>
+    <a href="#features">Features</a>
+    <a href="#how">How it works</a>
+    <a href="#config">Config</a>
+    <a href="#install">Install</a>
+  </nav>
+  <a class="btn btn-ghost btn-sm" href="https://github.com/rbrady/omadeck"><svg width="16" height="16"><use href="#i-gh"/></svg> GitHub</a>
+</header>
+
+<main id="top">
+
+  <section class="hero">
+    <p class="eyebrow"><span class="dot"></span> Elgato Stream Deck <span class="x">×</span> Omarchy</p>
+    <h1>Fifteen keys.<br><span class="grad">Zero friction.</span></h1>
+    <p class="lede">
+      omadeck makes the Stream Deck feel like it shipped with Omarchy. Launch apps, run scripts,
+      play sounds, open sites and drive Hyprland — with your theme painted on every key.
+      Written in Rust. Lives in 9&nbsp;MB.
+    </p>
+    <div class="cta">
+      <a class="btn btn-primary" href="#demo">Press some keys <span aria-hidden="true">↓</span></a>
+      <a class="btn btn-ghost" href="#install">Install in one line</a>
+    </div>
+  </section>
+
+  <!-- ===================================================================== DEMO -->
+  <section id="demo" class="demo" aria-label="Interactive demo">
+    <div class="rig">
+      <div class="monitor">
+        <div class="screen" id="screen" aria-label="Simulated Omarchy desktop">
+          <div class="wallpaper" id="wallpaper"></div>
+          <div class="bar">
+            <div class="bar-left">
+              <span class="bar-logo" aria-hidden="true">◆</span>
+              <ol class="ws-list" id="ws-list" aria-label="Workspaces"></ol>
+            </div>
+            <div class="bar-center" id="clock">--:--</div>
+            <div class="bar-right">
+              <svg class="bi bi-night" id="bi-night" aria-label="Night light on"><use href="#i-moon"/></svg>
+              <svg class="bi" id="bi-vol" aria-label="Volume"><use href="#i-sound"/></svg>
+              <svg class="bi bi-deck" aria-label="Stream Deck connected"><use href="#i-deck"/></svg>
+            </div>
+          </div>
+          <div class="workspaces" id="workspaces"></div>
+          <div class="night" id="night"></div>
+          <div class="flash" id="flash"></div>
+          <div class="toasts" id="toasts" aria-live="polite"></div>
+          <div class="osd" id="osd"><svg><use href="#i-sound"/></svg><div class="osd-bar"><i></i></div></div>
+          <div class="lock" id="lock" hidden>
+            <div class="lock-time" id="lock-time">--:--</div>
+            <div class="lock-date" id="lock-date"></div>
+            <button class="lock-field" id="lock-field">Click or press a key to unlock</button>
+          </div>
+        </div>
+        <div class="monitor-chin"></div>
+        <div class="monitor-stand"></div>
+      </div>
+
+      <div class="deck-wrap">
+        <div class="deck" id="deck" role="group" aria-label="Stream Deck — 15 keys"></div>
+        <div class="deck-stand"></div>
+      </div>
+    </div>
+
+    <aside class="demo-side">
+      <div class="panel">
+        <h2 class="panel-title"><svg><use href="#i-hand"/></svg> Try it</h2>
+        <p>Click the keys on the deck — or use your keyboard:</p>
+        <div class="keymap" aria-hidden="true">
+          <span>Q</span><span>W</span><span>E</span><span>R</span><span>T</span>
+          <span>A</span><span>S</span><span>D</span><span>F</span><span>G</span>
+          <span>Z</span><span>X</span><span>C</span><span>V</span><span>B</span>
+        </div>
+        <p class="muted small">This is the starter layout omadeck creates on first run. Row two switches Hyprland workspaces.</p>
+      </div>
+      <div class="panel">
+        <h2 class="panel-title"><svg><use href="#i-palette"/></svg> Switch theme</h2>
+        <p class="small muted">Real Omarchy palettes. The deck repaints instantly, just like <code>omarchy theme set</code>.</p>
+        <div class="themes" id="themes" role="radiogroup" aria-label="Theme"></div>
+      </div>
+      <div class="panel log-panel">
+        <div class="log-head"><span class="led"></span> journalctl --user -u omadeckd -f</div>
+        <pre class="log" id="log" aria-live="polite"></pre>
+      </div>
+    </aside>
+  </section>
+
+  <!-- ================================================================= FEATURES -->
+  <section id="features" class="section">
+    <header class="section-head">
+      <p class="eyebrow">Features</p>
+      <h2>Everything a key should do.<br>Nothing it shouldn't.</h2>
+    </header>
+    <div class="features">
+      <article class="card card-wide">
+        <svg class="card-icon"><use href="#i-bolt"/></svg>
+        <h3>Five kinds of action</h3>
+        <ul class="actions">
+          <li><b>Launch app</b><span>Pick from your installed apps — icon and name come along. Launched through <code>uwsm-app</code>, exactly like Omarchy does.</span></li>
+          <li><b>Run script</b><span>Any executable, optionally in a terminal so you can watch it run.</span></li>
+          <li><b>Play sound</b><span>Straight to PipeWire with per-key volume.</span></li>
+          <li><b>Open website</b><span>One click fetches the site's icon for the key.</span></li>
+          <li><b>Hyprland</b><span>Lua dispatchers or classic syntax — <code>workspace 3</code> just works on Lua-config Hyprland.</span></li>
+        </ul>
+      </article>
+      <article class="card">
+        <svg class="card-icon"><use href="#i-palette"/></svg>
+        <h3>Theme-aware by default</h3>
+        <p>Backgrounds, labels, glyphs and the press ring come from your Omarchy theme — and follow it live when you switch.</p>
+      </article>
+      <article class="card">
+        <svg class="card-icon"><use href="#i-image"/></svg>
+        <h3>Icons your way</h3>
+        <p>PNG, JPEG, SVG, WebP — or any Nerd Font glyph tinted in your accent colour. Labels render in your Omarchy font.</p>
+      </article>
+      <article class="card">
+        <svg class="card-icon"><use href="#i-hand"/></svg>
+        <h3>Live, tactile editing</h3>
+        <p>Edits land on the hardware as you type. Drag to rearrange. Press a physical key and the editor jumps to it.</p>
+      </article>
+      <article class="card">
+        <svg class="card-icon"><use href="#i-feather"/></svg>
+        <h3>Featherweight</h3>
+        <p>A Rust daemon using ~9&nbsp;MB and 0% CPU at idle. Survives replugs and keeps your last good layout through config typos.</p>
+      </article>
+      <article class="card">
+        <svg class="card-icon"><use href="#i-terminal-line"/></svg>
+        <h3>Scriptable</h3>
+        <p><code>omadeckd press 3</code> fires a key from any script or Hyprland binding. <code>list</code> and <code>snapshot</code> round out the CLI.</p>
+      </article>
+      <article class="card">
+        <svg class="card-icon"><use href="#i-box"/></svg>
+        <h3>Portable</h3>
+        <p>One folder — <code>~/.config/omadeck</code> — holds the layout and every icon. Copy it to your next machine and go.</p>
+      </article>
+    </div>
+  </section>
+
+  <!-- ===================================================================== HOW -->
+  <section id="how" class="section">
+    <header class="section-head">
+      <p class="eyebrow">How it works</p>
+      <h2>Two small programs.<br>One plain-text file.</h2>
+    </header>
+    <figure class="diagram">
+      <svg viewBox="0 0 960 360" role="img" aria-labelledby="dg-title">
+        <title id="dg-title">omadeck writes config.toml; omadeckd watches it and the Omarchy theme, drives the Stream Deck over USB, and streams key events back to omadeck over a Unix socket.</title>
+        <defs>
+          <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="dg-arrowhead"/></marker>
+        </defs>
+        <!-- nodes -->
+        <g class="dg-node"><rect x="20" y="40" width="220" height="96" rx="14"/><text x="130" y="80" class="dg-t">omadeck</text><text x="130" y="106" class="dg-s">GTK4 + libadwaita app</text></g>
+        <g class="dg-node dg-file"><rect x="370" y="40" width="220" height="96" rx="14"/><text x="480" y="80" class="dg-t">config.toml</text><text x="480" y="106" class="dg-s">~/.config/omadeck</text></g>
+        <g class="dg-node dg-hero"><rect x="370" y="224" width="220" height="96" rx="14"/><text x="480" y="264" class="dg-t">omadeckd</text><text x="480" y="290" class="dg-s">Rust · systemd --user</text></g>
+        <g class="dg-node"><rect x="720" y="224" width="220" height="96" rx="14"/><text x="830" y="264" class="dg-t">Stream Deck</text><text x="830" y="290" class="dg-s">USB HID · 72px JPEG keys</text></g>
+        <g class="dg-node dg-file"><rect x="720" y="40" width="220" height="96" rx="14"/><text x="830" y="80" class="dg-t">Omarchy theme</text><text x="830" y="106" class="dg-s">colors.toml · font</text></g>
+        <g class="dg-node"><rect x="20" y="224" width="220" height="96" rx="14"/><text x="130" y="264" class="dg-t">apps · scripts</text><text x="130" y="290" class="dg-s">uwsm · pw-play · hyprctl</text></g>
+        <!-- edges -->
+        <g class="dg-edge">
+          <path d="M240 88H366" marker-end="url(#arrow)"/><text x="303" y="78">writes</text>
+          <path d="M480 136V220" marker-end="url(#arrow)"/><text x="492" y="184" text-anchor="start">watches</text>
+          <path d="M830 136V170Q830 180 820 180H600Q590 180 590 190V230" marker-end="url(#arrow)"/><text x="705" y="172">live recolour</text>
+          <path d="M590 262H716" marker-end="url(#arrow)" marker-start="url(#arrow)"/><text x="653" y="252">keys ⇄ pixels</text>
+          <path d="M370 272H244" marker-end="url(#arrow)"/><text x="307" y="262">runs</text>
+          <path class="dg-dash" d="M400 224Q300 190 230 140" marker-end="url(#arrow)"/><text x="178" y="186">events · omadeck.sock</text>
+        </g>
+      </svg>
+      <figcaption>The configurator only ever writes the config file. The daemon watches it — and your theme — and repaints. Both render keys with the same Rust code, so the preview <em>is</em> the hardware.</figcaption>
+    </figure>
+  </section>
+
+  <!-- ============================================================ CONFIGURATOR -->
+  <section class="section split">
+    <div class="split-copy">
+      <p class="eyebrow">The configurator</p>
+      <h2>Click a key.<br>Make it yours.</h2>
+      <p>A native libadwaita app that tiles beautifully under Hyprland. Pick an app and its icon arrives with it. Pick a site and grab its favicon. Paste a Nerd Font glyph and it's tinted with your accent colour.</p>
+      <ul class="ticks">
+        <li>Drag keys to rearrange</li>
+        <li>Press a physical key to jump to it</li>
+        <li>▶ to test any action from the editor</li>
+        <li>Starts the daemon for you if it isn't running</li>
+      </ul>
+    </div>
+    <figure class="shot">
+      <img src="assets/configurator.png" width="941" height="1030" loading="lazy" alt="The omadeck configurator: a Stream Deck with the starter layout above an editor showing a Launch app action for the Terminal key.">
+    </figure>
+  </section>
+
+  <!-- ================================================================== CONFIG -->
+  <section id="config" class="section split split-rev">
+    <div class="split-copy">
+      <p class="eyebrow">Plain text, forever</p>
+      <h2>Your deck is<br>one TOML file.</h2>
+      <p>Edit it by hand, keep it in your dotfiles, diff it in git. The daemon reloads the moment you save — and a typo never blanks your deck; it keeps the last good layout.</p>
+      <p class="muted small">Prefer the command line? <code>omadeckd press 3</code> fires a key from any script or Hyprland binding, and <code>omadeckd snapshot deck.png</code> renders your layout.</p>
+    </div>
+    <div class="code">
+      <div class="code-head"><span></span><span></span><span></span><b>~/.config/omadeck/config.toml</b></div>
+<pre><code><span class="k">brightness</span> = <span class="n">70</span>
+
+<span class="h">[style]</span>
+<span class="k">follow_theme</span> = <span class="n">true</span>   <span class="c"># colours from Omarchy</span>
+
+<span class="h">[[key]]</span>
+<span class="k">index</span> = <span class="n">0</span>
+<span class="k">label</span> = <span class="s">"Terminal"</span>
+<span class="k">icon</span> = <span class="s">"icons/utilities-terminal.png"</span>
+<span class="h">[key.action]</span>
+<span class="k">type</span> = <span class="s">"app"</span>
+<span class="k">command</span> = <span class="s">"xdg-terminal-exec"</span>
+
+<span class="h">[[key]]</span>
+<span class="k">index</span> = <span class="n">7</span>
+<span class="k">label</span> = <span class="s">"3"</span>
+<span class="h">[key.action]</span>
+<span class="k">type</span> = <span class="s">"hyprland"</span>
+<span class="k">dispatch</span> = <span class="s">"workspace 3"</span>
+
+<span class="h">[[key]]</span>
+<span class="k">index</span> = <span class="n">11</span>
+<span class="k">label</span> = <span class="s">"Night light"</span>
+<span class="k">glyph</span> = <span class="s">"f0594"</span>       <span class="c"># Nerd Font moon</span>
+<span class="h">[key.action]</span>
+<span class="k">type</span> = <span class="s">"app"</span>
+<span class="k">command</span> = <span class="s">"omarchy toggle nightlight"</span></code></pre>
+    </div>
+  </section>
+
+  <!-- ================================================================= INSTALL -->
+  <section id="install" class="section">
+    <header class="section-head">
+      <p class="eyebrow">Install</p>
+      <h2>Up and running<br>before your coffee cools.</h2>
+    </header>
+    <ol class="steps">
+      <li>
+        <h3><span>1</span> Get a Rust toolchain</h3>
+        <div class="cmd"><code>mise use -g rust@latest</code><button class="copy" aria-label="Copy command"><svg><use href="#i-copy"/></svg></button></div>
+      </li>
+      <li>
+        <h3><span>2</span> Clone &amp; install</h3>
+        <div class="cmd"><code>git clone https://github.com/rbrady/omadeck &amp;&amp; cd omadeck &amp;&amp; scripts/install.sh</code><button class="copy" aria-label="Copy command"><svg><use href="#i-copy"/></svg></button></div>
+        <p class="small muted">Builds a release binary, adds a launcher entry, enables the <code>omadeckd</code> user service, and installs a udev rule only if your user can't already reach the deck.</p>
+      </li>
+      <li>
+        <h3><span>3</span> Open omadeck</h3>
+        <p><kbd>Super</kbd> + <kbd>Space</kbd> → <b>omadeck</b>. Your deck lights up with the starter layout.</p>
+      </li>
+    </ol>
+    <div class="compat">
+      <div><b>Decks</b><span>Original · V2 · MK.2 · Mini · XL · Neo · +</span></div>
+      <div><b>Built for</b><span>Omarchy · Hyprland · PipeWire · uwsm</span></div>
+      <div><b>Stack</b><span>Rust · GTK4 · libadwaita · hidapi</span></div>
+      <div><b>License</b><span>MIT</span></div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="footer">
+  <p><img src="assets/favicon.svg" alt="" width="22" height="22"> <b>omadeck</b> — built on Omarchy by Raymond Brady with Claude.</p>
+  <p class="muted small">Not affiliated with Elgato or Corsair. Stream Deck is a trademark of Corsair Memory, Inc.</p>
+</footer>
+
+</body>
+</html>

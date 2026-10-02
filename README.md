@@ -131,6 +131,7 @@ crates/
   omadeck-gui/    GTK4 + libadwaita configurator (binary: omadeck)
 packaging/        systemd unit, udev rule, desktop entry, PKGBUILD
 scripts/          install / uninstall
+site/             project website: static HTML/CSS/JS with an interactive demo
 ```
 
 - **Single source of truth.** The GUI only writes `config.toml` (atomically). The daemon watches it, plus Omarchy's theme state in `~/.local/state/omarchy/current`, and repaints.
