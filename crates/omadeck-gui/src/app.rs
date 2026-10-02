@@ -485,7 +485,7 @@ impl App {
         let about = adw::AboutDialog::builder()
             .application_name("omadeck")
             .application_icon(crate::APP_ID)
-            .developer_name("Ryan Brady & Claude")
+            .developer_name("Raymond Brady & Claude")
             .version(env!("CARGO_PKG_VERSION"))
             .comments("Elgato Stream Deck for Omarchy: launch apps, run scripts, play sounds and open websites — with your theme on every key.")
             .license_type(gtk::License::MitX11)

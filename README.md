@@ -15,7 +15,7 @@ Written in Rust: a tiny background daemon drives the hardware, and a GTK4/libadw
   - **Run script:** optionally in a terminal so you can watch the output.
   - **Play sound:** through PipeWire (`pw-play`), with per-key volume.
   - **Open website:** one click fetches the site's icon for the key.
-  - **Hyprland:** any `hyprctl dispatch`, such as `workspace 3`, `togglefloating` or `exec [float] pavucontrol`.
+  - **Hyprland:** any dispatcher. Lua (`hl.dsp.focus({ workspace = "3" })`) is passed straight to `hyprctl dispatch`. Classic syntax (`workspace 3`, `movetoworkspace 2`, `togglefloating`, `fullscreen`, `killactive`, `exec …`) is translated automatically on Hyprland versions that use a Lua config.
 - **Icons your way**
   - PNG, JPEG, SVG, WebP or GIF images.
   - App icons from your icon theme.
@@ -145,4 +145,4 @@ scripts/          install / uninstall
 
 ## License
 
-MIT. Built on Omarchy by Ryan Brady with Claude.
+MIT. Built on Omarchy by Raymond Brady with Claude.

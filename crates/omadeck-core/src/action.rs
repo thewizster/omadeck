@@ -155,18 +155,86 @@ fn open_url(url: &str) -> Result<()> {
 }
 
 fn hypr_dispatch(dispatch: &str) -> Result<()> {
-    let args = shell_words::split(dispatch.trim()).context("could not parse dispatcher")?;
-    if args.is_empty() {
+    let d = dispatch.trim();
+    if d.is_empty() {
         bail!("no dispatcher set");
     }
-    let mut c = Command::new("hyprctl");
-    c.arg("dispatch").args(args);
-    spawn(c)
+    // Lua dispatcher (Hyprland 0.55+ with a Lua config), e.g. hl.dsp.focus({ workspace = "3" }).
+    if d.contains('(') {
+        return hyprctl_dispatch(&[d.to_string()]);
+    }
+    // Classic syntax, e.g. `workspace 3`. Lua-config Hyprland rejects it, so translate.
+    let args = shell_words::split(d).context("could not parse dispatcher")?;
+    match hyprctl_dispatch(&args) {
+        Ok(()) => Ok(()),
+        Err(e) if e.to_string().to_lowercase().contains("lua") || e.to_string().contains("hl.") => {
+            match legacy_to_lua(d) {
+                Some(lua) => hyprctl_dispatch(&[lua]),
+                None => bail!(
+                    "this Hyprland expects Lua dispatchers, e.g. hl.dsp.focus({{ workspace = \"3\" }}) — couldn't translate `{d}`"
+                ),
+            }
+        }
+        Err(e) => Err(e),
+    }
+}
+
+/// Run `hyprctl dispatch …` and wait for its answer (it replies "ok" in a few ms).
+fn hyprctl_dispatch(args: &[String]) -> Result<()> {
+    log::info!("exec hyprctl dispatch {}", args.join(" "));
+    let out = Command::new("hyprctl").arg("dispatch").args(args).stdin(Stdio::null()).output()?;
+    let text = format!("{}{}", String::from_utf8_lossy(&out.stdout), String::from_utf8_lossy(&out.stderr));
+    let text = text.trim();
+    if out.status.success() && (text.is_empty() || text == "ok") {
+        Ok(())
+    } else {
+        let msg: Vec<&str> = text.lines().map(str::trim).filter(|l| !l.is_empty()).collect();
+        bail!("hyprctl: {}", if msg.is_empty() { "failed".to_string() } else { msg.join(" ") })
+    }
+}
+
+fn lua_str(s: &str) -> String {
+    format!("\"{}\"", s.replace('\\', "\\\\").replace('"', "\\\""))
+}
+
+/// Translate common classic dispatchers to Hyprland's Lua API.
+pub fn legacy_to_lua(dispatch: &str) -> Option<String> {
+    let d = dispatch.trim();
+    let (name, arg) = d.split_once(char::is_whitespace).map(|(n, a)| (n, a.trim())).unwrap_or((d, ""));
+    let lua = match (name, arg) {
+        ("workspace", ws) if !ws.is_empty() => format!("hl.dsp.focus({{ workspace = {} }})", lua_str(ws)),
+        ("movetoworkspace", ws) if !ws.is_empty() => format!("hl.dsp.window.move({{ workspace = {} }})", lua_str(ws)),
+        ("movetoworkspacesilent", ws) if !ws.is_empty() => {
+            format!("hl.dsp.window.move({{ workspace = {}, follow = false }})", lua_str(ws))
+        }
+        ("togglespecialworkspace", n) => format!("hl.dsp.workspace.toggle_special({})", lua_str(n)),
+        ("togglefloating", _) => "hl.dsp.window.float({ action = \"toggle\" })".into(),
+        ("fullscreen", "1") => "hl.dsp.window.fullscreen({ mode = \"maximized\" })".into(),
+        ("fullscreen", _) => "hl.dsp.window.fullscreen({ mode = \"fullscreen\" })".into(),
+        ("killactive", _) => "hl.dsp.window.close()".into(),
+        ("pseudo", _) => "hl.dsp.window.pseudo()".into(),
+        ("movefocus", dir @ ("l" | "r" | "u" | "d")) => format!("hl.dsp.focus({{ direction = {} }})", lua_str(dir)),
+        ("exec", cmd) if !cmd.is_empty() => format!("hl.dsp.exec_cmd({})", lua_str(cmd)),
+        _ => return None,
+    };
+    Some(lua)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn hypr_translation() {
+        assert_eq!(legacy_to_lua("workspace 3").unwrap(), r#"hl.dsp.focus({ workspace = "3" })"#);
+        assert_eq!(
+            legacy_to_lua("movetoworkspacesilent 2").unwrap(),
+            r#"hl.dsp.window.move({ workspace = "2", follow = false })"#
+        );
+        assert_eq!(legacy_to_lua("killactive").unwrap(), "hl.dsp.window.close()");
+        assert_eq!(legacy_to_lua(r#"exec notify-send "hi""#).unwrap(), r#"hl.dsp.exec_cmd("notify-send \"hi\"")"#);
+        assert_eq!(legacy_to_lua("bogus 1"), None);
+    }
 
     #[test]
     fn urls() {

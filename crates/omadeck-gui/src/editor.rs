@@ -288,7 +288,8 @@ fn action_rows(app: &Rc<App>, i: u8, key: &KeyConfig, group: &adw::PreferencesGr
 
         Action::Hyprland { dispatch } => {
             group.set_description(Some(
-                "Runs hyprctl dispatch. Try: workspace 3 · togglefloating · fullscreen · killactive · exec [float] pavucontrol",
+                "Runs hyprctl dispatch. Classic syntax like workspace 3 · togglefloating · killactive · exec pavucontrol \
+                 is translated for you, or write Lua directly: hl.dsp.focus({ workspace = \"3\" })",
             ));
             let row = adw::EntryRow::builder().title("Dispatcher and arguments").text(dispatch).build();
             let a = app.clone();
