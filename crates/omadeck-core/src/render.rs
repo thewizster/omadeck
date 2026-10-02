@@ -8,9 +8,10 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use ab_glyph::{point, Font, FontVec, PxScale, ScaleFont};
+use ab_glyph::{Font, FontVec, PxScale, ScaleFont, point};
+use image::Rgba;
+pub use image::RgbaImage;
 use image::imageops::{self, FilterType};
-use image::{Rgba, RgbaImage};
 
 use crate::config::{KeyConfig, Style};
 use crate::paths;
@@ -58,7 +59,7 @@ impl Renderer {
             .unwrap_or(if style.follow_theme { self.theme.background } else { Rgb(0, 0, 0) })
     }
 
-    fn label_color(&self, key: Option<&KeyConfig>, style: &Style, bg: Rgb) -> Rgb {
+    pub fn label_color(&self, key: Option<&KeyConfig>, style: &Style, bg: Rgb) -> Rgb {
         if let Some(c) = key.and_then(|k| k.label_color.as_deref()).and_then(Rgb::parse) {
             return c;
         }
@@ -92,10 +93,19 @@ impl Renderer {
         let want_label = key.show_label && !label.is_empty();
         let fg = self.label_color(Some(key), style, bg);
 
-        let icon = key.icon.as_deref().and_then(|p| {
-            let box_px = if want_label { (s * 0.62) as u32 } else { (s * 0.80) as u32 };
-            self.icon(&paths::resolve(p), box_px)
-        });
+        let box_px = if want_label { (s * 0.62) as u32 } else { (s * 0.80) as u32 };
+        let icon = match (key.icon.as_deref(), key.glyph.as_deref().filter(|g| !g.trim().is_empty())) {
+            (Some(p), _) => self.icon(&paths::resolve(p), box_px),
+            (None, Some(g)) => {
+                let color = key.label_color.as_deref().and_then(Rgb::parse).unwrap_or(if style.follow_theme {
+                    self.theme.accent
+                } else {
+                    fg
+                });
+                self.glyph(g, (box_px as f32 * 0.86) as u32, color)
+            }
+            _ => None,
+        };
 
         match (&icon, want_label) {
             (Some(icon), true) => {
@@ -147,6 +157,26 @@ impl Renderer {
         }
         self.icons.insert(k, loaded.clone());
         loaded
+    }
+
+    /// Rasterise a single (Nerd Font) symbol, scaled to fit a `box_px` square.
+    fn glyph(&self, text: &str, box_px: u32, color: Rgb) -> Option<RgbaImage> {
+        let font = self.font.as_ref()?;
+        let id = font.glyph_id(glyph_char(text)?);
+        if id.0 == 0 {
+            return None;
+        }
+        let probe = font.outline_glyph(id.with_scale(PxScale::from(100.0)))?.px_bounds();
+        let k = box_px as f32 / probe.width().max(probe.height()).max(1.0);
+        let outline = font.outline_glyph(id.with_scale_and_position(PxScale::from(100.0 * k), point(0.0, 0.0)))?;
+        let b = outline.px_bounds();
+        let mut img = RgbaImage::new((b.width().ceil() as u32).max(1), (b.height().ceil() as u32).max(1));
+        outline.draw(|x, y, cov| {
+            if x < img.width() && y < img.height() {
+                img.put_pixel(x, y, Rgba([color.0, color.1, color.2, (cov.clamp(0.0, 1.0) * 255.0) as u8]));
+            }
+        });
+        Some(img)
     }
 
     // --- text -------------------------------------------------------------------------
@@ -219,6 +249,21 @@ impl Renderer {
     }
 }
 
+/// A pasted symbol, or a codepoint written as `f075f`, `U+F075F`, `0xf075f` or `\\u{f075f}`.
+pub fn glyph_char(text: &str) -> Option<char> {
+    let t = text.trim();
+    let hex = t
+        .trim_start_matches("\\u{")
+        .trim_end_matches('}')
+        .trim_start_matches("U+")
+        .trim_start_matches("u+")
+        .trim_start_matches("0x");
+    if hex.len() >= 4 && hex.len() <= 6 && hex.chars().all(|c| c.is_ascii_hexdigit()) {
+        return u32::from_str_radix(hex, 16).ok().and_then(char::from_u32);
+    }
+    t.chars().next()
+}
+
 fn wrap(font: &FontVec, px: f32, text: &str, max_w: f32) -> Vec<String> {
     let mut lines: Vec<String> = Vec::new();
     for word in text.split_whitespace() {
@@ -237,7 +282,16 @@ fn wrap(font: &FontVec, px: f32, text: &str, max_w: f32) -> Vec<String> {
 }
 
 #[allow(clippy::too_many_arguments)]
-fn draw_text(img: &mut RgbaImage, font: &FontVec, px: f32, x: f32, baseline: f32, text: &str, color: Rgb, opacity: f32) {
+fn draw_text(
+    img: &mut RgbaImage,
+    font: &FontVec,
+    px: f32,
+    x: f32,
+    baseline: f32,
+    text: &str,
+    color: Rgb,
+    opacity: f32,
+) {
     let scale = PxScale::from(px);
     let sf = font.as_scaled(scale);
     let mut caret = x;
@@ -321,4 +375,19 @@ fn load_font(pattern: &str) -> Option<FontVec> {
         }
     }
     None
+}
+
+#[cfg(test)]
+mod tests {
+    use super::glyph_char;
+
+    #[test]
+    fn glyph_forms() {
+        assert_eq!(glyph_char("\u{f075f}"), Some('\u{f075f}'));
+        assert_eq!(glyph_char("f075f"), Some('\u{f075f}'));
+        assert_eq!(glyph_char("U+F075F"), Some('\u{f075f}'));
+        assert_eq!(glyph_char("\\u{f075f}"), Some('\u{f075f}'));
+        assert_eq!(glyph_char("A"), Some('A'));
+        assert_eq!(glyph_char(""), None);
+    }
 }

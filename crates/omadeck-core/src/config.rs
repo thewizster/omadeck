@@ -72,6 +72,9 @@ pub struct KeyConfig {
     /// PNG/JPEG/SVG/… path. Relative paths resolve against the config dir.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub icon: Option<String>,
+    /// A Nerd Font symbol drawn as the icon in the theme accent colour (used when `icon` is unset).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub glyph: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub background: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -87,6 +90,7 @@ impl KeyConfig {
             label: String::new(),
             show_label: true,
             icon: None,
+            glyph: None,
             background: None,
             label_color: None,
             action: Action::None,
@@ -97,6 +101,7 @@ impl KeyConfig {
     pub fn is_blank(&self) -> bool {
         self.label.is_empty()
             && self.icon.is_none()
+            && self.glyph.is_none()
             && self.background.is_none()
             && self.label_color.is_none()
             && self.action == Action::None

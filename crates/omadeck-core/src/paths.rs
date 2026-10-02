@@ -32,9 +32,7 @@ pub fn icons_dir() -> PathBuf {
 
 /// Unix socket the daemon publishes events on.
 pub fn socket_path() -> PathBuf {
-    let dir = env::var_os("XDG_RUNTIME_DIR")
-        .map(PathBuf::from)
-        .unwrap_or_else(env::temp_dir);
+    let dir = env::var_os("XDG_RUNTIME_DIR").map(PathBuf::from).unwrap_or_else(env::temp_dir);
     dir.join("omadeck.sock")
 }
 

@@ -1,8 +1,23 @@
 [package]
 name = "omadeck-gui"
+description = "omadeck configurator: a GTK4/libadwaita app for laying out your Stream Deck"
 version.workspace = true
 edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
 
 [[bin]]
 name = "omadeck"
 path = "src/main.rs"
+
+[dependencies]
+omadeck-core.workspace = true
+anyhow.workspace = true
+log.workspace = true
+env_logger.workspace = true
+gtk = { package = "gtk4", version = "0.11", features = ["v4_16"] }
+adw = { package = "libadwaita", version = "0.9", features = ["v1_7"] }
+async-channel = "2"
+ureq = "3"
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "ico", "webp", "gif", "bmp"] }

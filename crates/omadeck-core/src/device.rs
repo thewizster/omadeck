@@ -1,10 +1,11 @@
 //! Device discovery helpers on top of the `elgato-streamdeck` crate.
 
-
 use serde::{Deserialize, Serialize};
 
-pub use elgato_streamdeck::{list_devices, new_hidapi, refresh_device_list, DeviceStateReader, DeviceStateUpdate, StreamDeck};
 pub use elgato_streamdeck::info::Kind;
+pub use elgato_streamdeck::{
+    DeviceStateReader, DeviceStateUpdate, StreamDeck, list_devices, new_hidapi, refresh_device_list,
+};
 pub use hidapi::HidApi;
 
 /// What the configurator needs to know to draw a deck.

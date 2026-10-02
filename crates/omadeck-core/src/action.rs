@@ -7,7 +7,7 @@ use std::process::{Command, Stdio};
 use std::sync::OnceLock;
 use std::thread;
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 
 use crate::config::Action;
 use crate::paths;
@@ -24,9 +24,7 @@ pub fn run(action: &Action) -> Result<()> {
 }
 
 fn which(bin: &str) -> bool {
-    std::env::var_os("PATH")
-        .map(|p| std::env::split_paths(&p).any(|d| d.join(bin).is_file()))
-        .unwrap_or(false)
+    std::env::var_os("PATH").map(|p| std::env::split_paths(&p).any(|d| d.join(bin).is_file())).unwrap_or(false)
 }
 
 /// Omarchy launches apps through uwsm so they get their own systemd scope.

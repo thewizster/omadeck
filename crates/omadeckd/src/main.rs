@@ -4,16 +4,16 @@
 mod hub;
 
 use std::path::Path;
+use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc;
-use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result};
 use notify::{RecursiveMode, Watcher};
 use omadeck_core::device::{self, DeviceStateReader, DeviceStateUpdate, HidApi, Kind, StreamDeck};
 use omadeck_core::ipc::Event;
-use omadeck_core::{action, paths, Config, DeckInfo, Renderer};
+use omadeck_core::{Config, DeckInfo, Renderer, action, paths};
 
 use hub::Hub;
 
@@ -29,9 +29,7 @@ struct Deck {
 }
 
 fn main() {
-    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info"))
-        .format_timestamp(None)
-        .init();
+    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).format_timestamp(None).init();
 
     let mut args = std::env::args().skip(1);
     match args.next().as_deref() {
@@ -44,6 +42,22 @@ fn main() {
             for d in decks {
                 println!("{}  serial={}  {}x{} keys  {}px", d.model, d.serial, d.cols, d.rows, d.key_size);
             }
+            return;
+        }
+        Some("press") => {
+            let Some(i) = args.next().and_then(|v| v.parse::<u8>().ok()) else {
+                eprintln!("usage: omadeckd press KEY   (keys are numbered from 0)");
+                std::process::exit(2);
+            };
+            let cfg = load_config();
+            let act = cfg.key(i).map(|k| k.action.clone()).unwrap_or_default();
+            println!("key {i}: {}", act.summary());
+            if let Err(e) = action::run(&act) {
+                eprintln!("{e:#}");
+                std::process::exit(1);
+            }
+            // Give the detached child a moment to start before we exit.
+            std::thread::sleep(Duration::from_millis(300));
             return;
         }
         Some("snapshot") => {
@@ -60,7 +74,9 @@ fn main() {
             return;
         }
         Some(_) => {
-            eprintln!("usage: omadeckd [run | list | snapshot FILE.png | --version]\n\nRuns the omadeck Stream Deck daemon.");
+            eprintln!(
+                "usage: omadeckd [run | list | press KEY | snapshot FILE.png | --version]\n\nRuns the omadeck Stream Deck daemon."
+            );
             std::process::exit(2);
         }
     }
@@ -208,6 +224,8 @@ fn load_config() -> Config {
     }
 }
 
+// elgato-streamdeck hands out its reader via `Arc<Self>`; everything stays on this thread.
+#[allow(clippy::arc_with_non_send_sync)]
 fn connect(hid: &mut HidApi, cfg: &Config, renderer: &mut Renderer) -> Option<Deck> {
     if let Err(e) = device::refresh_device_list(hid) {
         log::warn!("hidapi refresh: {e}");
@@ -223,7 +241,12 @@ fn connect(hid: &mut HidApi, cfg: &Config, renderer: &mut Renderer) -> Option<De
     };
     let reader = dev.get_reader();
     let deck = Deck { dev, reader, kind, info: DeckInfo::new(kind, &serial) };
-    log::info!("connected {} (serial {}, firmware {})", deck.info.model, serial, deck.dev.firmware_version().unwrap_or_default());
+    log::info!(
+        "connected {} (serial {}, firmware {})",
+        deck.info.model,
+        serial,
+        deck.dev.firmware_version().unwrap_or_default()
+    );
     if let Err(e) = paint_all(&deck, cfg, renderer) {
         log::warn!("initial paint failed: {e}");
     }

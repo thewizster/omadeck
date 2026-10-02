@@ -14,13 +14,22 @@ use crate::paths;
 #[serde(tag = "event", rename_all = "snake_case")]
 pub enum Event {
     /// Sent on connect and whenever a deck is attached.
-    Connected { deck: DeckInfo },
+    Connected {
+        deck: DeckInfo,
+    },
     /// Sent on connect when no deck is attached, and on unplug.
     Disconnected,
-    KeyDown { index: u8 },
-    KeyUp { index: u8 },
+    KeyDown {
+        index: u8,
+    },
+    KeyUp {
+        index: u8,
+    },
     /// An action failed to start.
-    ActionFailed { index: u8, message: String },
+    ActionFailed {
+        index: u8,
+        message: String,
+    },
 }
 
 impl Event {
@@ -34,8 +43,5 @@ impl Event {
 /// Connect to a running daemon and iterate its events. Ends when the daemon goes away.
 pub fn subscribe() -> Result<impl Iterator<Item = Event>> {
     let stream = UnixStream::connect(paths::socket_path())?;
-    Ok(BufReader::new(stream)
-        .lines()
-        .map_while(|l| l.ok())
-        .filter_map(|l| serde_json::from_str(&l).ok()))
+    Ok(BufReader::new(stream).lines().map_while(|l| l.ok()).filter_map(|l| serde_json::from_str(&l).ok()))
 }
