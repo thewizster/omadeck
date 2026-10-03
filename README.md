@@ -13,7 +13,7 @@
 </p>
 
 <p align="center">
-  <a href="https://thewizster.github.io/omadeck/"><b>Website and live demo</b></a> ·
+  <a href="https://omadeck.app/"><b>Website and live demo</b></a> ·
   <a href="#install">Install</a> ·
   <a href="#roadmap">Roadmap</a>
 </p>
