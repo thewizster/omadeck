@@ -13,7 +13,7 @@ jobs:
     steps:
       - name: Install dependencies
         run: pacman -Syu --noconfirm --needed base-devel rust gtk4 libadwaita systemd-libs fontconfig git github-cli
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Tag must match the Cargo version
         run: |
           version=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)

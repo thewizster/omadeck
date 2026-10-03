@@ -15,8 +15,8 @@ jobs:
     steps:
       - name: Install dependencies
         run: pacman -Syu --noconfirm --needed base-devel rust gtk4 libadwaita systemd-libs fontconfig git
-      - uses: actions/checkout@v4
-      - uses: actions/cache@v4
+      - uses: actions/checkout@v7
+      - uses: actions/cache@v6
         with:
           path: |
             ~/.cargo/registry
