@@ -7,7 +7,9 @@
    **Unreleased** section, and update the compare links at the bottom.
 3. Update `pkgver` in `packaging/aur/omadeck/PKGBUILD` (reset `pkgrel=1`), then regenerate:
    `cd packaging/aur/omadeck && makepkg --printsrcinfo > .SRCINFO`
-4. Commit: `git commit -am "Release vX.Y.Z"`.
+4. Update the version in the install commands in `README.md` and `site/index.html`
+   (`grep -n 'releases/download' README.md site/index.html`).
+5. Commit: `git commit -am "Release vX.Y.Z"`.
 
 ## 2. Tag and push
 

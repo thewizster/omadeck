@@ -8,7 +8,6 @@
 <p align="center">
   <a href="https://github.com/thewizster/omadeck/actions/workflows/ci.yml"><img src="https://github.com/thewizster/omadeck/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="https://github.com/thewizster/omadeck/releases/latest"><img src="https://img.shields.io/github/v/release/thewizster/omadeck" alt="Latest release"></a>
-  <a href="https://aur.archlinux.org/packages/omadeck-bin"><img src="https://img.shields.io/aur/version/omadeck-bin?label=AUR" alt="AUR"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="MIT license"></a>
 </p>
 
@@ -52,24 +51,21 @@ Written in Rust: a tiny background daemon drives the hardware, and a GTK4/libadw
 
 ## Install
 
-### AUR (recommended)
+### Prebuilt release (recommended, no Rust needed)
 
 ```bash
-yay -S omadeck-bin          # prebuilt
-# or: yay -S omadeck        # build from source
-systemctl --user enable --now omadeckd.service
-```
-
-The package installs a udev rule, so if the deck isn't detected straight away, replug it once.
-
-### Release tarball (no Rust needed)
-
-Download `omadeck-<version>-x86_64-linux.tar.gz` from the [latest release](https://github.com/thewizster/omadeck/releases/latest), check it against `SHA256SUMS`, then:
-
-```bash
-tar xzf omadeck-*-x86_64-linux.tar.gz && cd omadeck-*-x86_64-linux
+curl -LO https://github.com/thewizster/omadeck/releases/download/v0.1.0/omadeck-0.1.0-x86_64-linux.tar.gz
+curl -LO https://github.com/thewizster/omadeck/releases/download/v0.1.0/SHA256SUMS
+sha256sum -c SHA256SUMS
+tar xzf omadeck-0.1.0-x86_64-linux.tar.gz && cd omadeck-0.1.0-x86_64-linux
 scripts/install.sh
 ```
+
+The installer uses the prebuilt binaries, enables the `omadeckd` user service and offers to set
+up the udev rule (details below). If the deck isn't detected straight away, replug it once.
+
+**Coming soon:** `omarchy pkg add omadeck-bin` from the Omarchy Package Repository. The package
+is in review.
 
 ### From source
 
@@ -83,7 +79,7 @@ scripts/install.sh
 
 The script:
 
-- builds a release binary (pinned to `Cargo.lock`) and installs `omadeck` + `omadeckd` to `~/.local/bin`;
+- builds a release binary (pinned to `Cargo.lock`), or uses the prebuilt ones from a release tarball, and installs `omadeck` + `omadeckd` to `~/.local/bin`;
 - adds a launcher entry;
 - enables the `omadeckd` systemd **user** service, which starts with your graphical session;
 - if your user can't already open the deck, shows the udev rule and the exact `sudo` commands, and runs them only if you answer `y`.
