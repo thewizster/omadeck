@@ -1,0 +1,52 @@
+# A config written by a future omadeck: an action type and settings this version doesn't know.
+
+brightness = 60
+sync = "auto"
+
+[style]
+follow_theme = true
+corner_radius = 12
+
+[template]
+name = "Omarchy Basics"
+author = "omadeck"
+
+[[key]]
+index = 0
+label = "Terminal"
+shape = "round"
+
+[key.action]
+type = "app"
+command = "xdg-terminal-exec"
+
+[[key]]
+index = 1
+label = "Scene"
+
+[key.action]
+type = "obs_scene"
+scene = "Live"
+fade_ms = 300
+
+[[page]]
+name = "Media"
+color = "blue"
+
+[[page.key]]
+index = 0
+label = "Back"
+
+[page.key.action]
+type = "back"
+
+[[page.key]]
+index = 1
+label = "Stinger"
+
+[page.key.action]
+type = "obs_transition"
+
+[page.key.action.stinger]
+file = "wipe.webm"
+point_ms = 900

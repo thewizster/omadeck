@@ -23,11 +23,20 @@ pub struct Config {
     /// More pages, opened from keys with a `page` action.
     #[serde(default, rename = "page", skip_serializing_if = "Vec::is_empty")]
     pub pages: Vec<Page>,
+    /// Settings from a newer omadeck, kept so saving doesn't lose them.
+    #[serde(flatten, default, skip_serializing_if = "toml::Table::is_empty")]
+    pub extra: toml::Table,
 }
 
 impl Default for Config {
     fn default() -> Self {
-        Self { brightness: default_brightness(), style: Style::default(), keys: Keys::default(), pages: Vec::new() }
+        Self {
+            brightness: default_brightness(),
+            style: Style::default(),
+            keys: Keys::default(),
+            pages: Vec::new(),
+            extra: toml::Table::new(),
+        }
     }
 }
 
@@ -37,6 +46,14 @@ pub struct Page {
     pub name: String,
     #[serde(default, rename = "key", skip_serializing_if = "Keys::is_empty")]
     pub keys: Keys,
+    #[serde(flatten, default, skip_serializing_if = "toml::Table::is_empty")]
+    pub extra: toml::Table,
+}
+
+impl Page {
+    pub fn new(name: impl Into<String>) -> Self {
+        Self { name: name.into(), keys: Keys::default(), extra: toml::Table::new() }
+    }
 }
 
 /// The keys on one page. Keys that aren't listed are blank.
@@ -114,11 +131,13 @@ pub struct Style {
     /// fontconfig pattern for labels. Defaults to the Omarchy monospace font.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub font: Option<String>,
+    #[serde(flatten, default, skip_serializing_if = "toml::Table::is_empty")]
+    pub extra: toml::Table,
 }
 
 impl Default for Style {
     fn default() -> Self {
-        Self { follow_theme: true, background: None, label_color: None, font: None }
+        Self { follow_theme: true, background: None, label_color: None, font: None, extra: toml::Table::new() }
     }
 }
 
@@ -140,8 +159,10 @@ pub struct KeyConfig {
     pub background: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub label_color: Option<String>,
-    #[serde(default)]
+    #[serde(default, with = "keep_unknown")]
     pub action: Action,
+    #[serde(flatten, default, skip_serializing_if = "toml::Table::is_empty")]
+    pub extra: toml::Table,
 }
 
 impl KeyConfig {
@@ -155,6 +176,7 @@ impl KeyConfig {
             background: None,
             label_color: None,
             action: Action::None,
+            extra: toml::Table::new(),
         }
     }
 
@@ -166,6 +188,7 @@ impl KeyConfig {
             && self.background.is_none()
             && self.label_color.is_none()
             && self.action == Action::None
+            && self.extra.is_empty()
     }
 }
 
@@ -197,11 +220,44 @@ pub enum Action {
     Page { page: String },
     /// Return to the page shown before this one (Home if there is none).
     Back,
+    /// An action from a newer omadeck. It's kept exactly as written and does nothing here.
+    /// (Read and written by `keep_unknown`; serde never sees it directly.)
+    #[serde(skip)]
+    Unknown { kind: String, raw: toml::Table },
+}
+
+/// Serde for an action field that keeps action types this version doesn't know, instead of
+/// rejecting the whole config: a key from a newer omadeck shouldn't blank the deck.
+mod keep_unknown {
+    use super::Action;
+    use serde::{Deserialize, Deserializer, Serialize, Serializer};
+
+    pub fn serialize<S: Serializer>(action: &Action, s: S) -> Result<S::Ok, S::Error> {
+        match action {
+            Action::Unknown { raw, .. } => raw.serialize(s),
+            known => known.serialize(s),
+        }
+    }
+
+    pub fn deserialize<'de, D: Deserializer<'de>>(d: D) -> Result<Action, D::Error> {
+        let raw = toml::Table::deserialize(d)?;
+        match raw.get("type").and_then(toml::Value::as_str) {
+            Some(kind) if !Action::TYPES.contains(&kind) => Ok(Action::Unknown { kind: kind.to_string(), raw }),
+            // Known types, and a missing `type`, report their errors as before.
+            _ => Action::deserialize(toml::Value::Table(raw)).map_err(serde::de::Error::custom),
+        }
+    }
 }
 
 impl Action {
     pub const KINDS: [&'static str; 8] =
         ["Nothing", "Launch app", "Run script", "Play sound", "Open website", "Hyprland", "Open page", "Go back"];
+
+    /// Every `type` this version understands, in `KINDS` order.
+    pub const TYPES: [&'static str; 8] = ["none", "app", "script", "sound", "url", "hyprland", "page", "back"];
+
+    /// What `kind_index` returns for an action from a newer omadeck (not in `KINDS`).
+    pub const UNKNOWN: usize = Self::KINDS.len();
 
     pub fn kind_index(&self) -> usize {
         match self {
@@ -213,6 +269,7 @@ impl Action {
             Action::Hyprland { .. } => 5,
             Action::Page { .. } => 6,
             Action::Back => 7,
+            Action::Unknown { .. } => Self::UNKNOWN,
         }
     }
 
@@ -244,6 +301,7 @@ impl Action {
             Action::Hyprland { dispatch } => format!("hyprctl dispatch {dispatch}"),
             Action::Page { page } => format!("Open page {page}"),
             Action::Back => "Go back".into(),
+            Action::Unknown { kind, .. } => format!("{kind} (needs a newer omadeck)"),
         }
     }
 }
@@ -480,11 +538,11 @@ mod tests {
         c.keys.get_mut(3).action = Action::Sound { file: "~/a.wav".into(), volume: Some(0.5) };
         c.keys.get_mut(4).action = Action::Script { path: "x.sh".into(), terminal: true };
         c.keys.get_mut(5).action = Action::Page { page: "Media".into() };
-        let mut media = Page { name: "Media".into(), keys: Keys::default() };
+        let mut media = Page::new("Media");
         media.keys.get_mut(0).action = Action::Back;
         media.keys.get_mut(1).label = "Play".into();
         c.pages.push(media);
-        c.pages.push(Page { name: "Empty".into(), keys: Keys::default() });
+        c.pages.push(Page::new("Empty"));
         let s = toml::to_string_pretty(&c).unwrap();
         let back: Config = toml::from_str(&s).unwrap();
         assert_eq!(c, back);
@@ -503,7 +561,7 @@ mod tests {
     #[test]
     fn pages() {
         let mut c = Config::default();
-        c.pages.push(Page { name: "Media".into(), keys: Keys::default() });
+        c.pages.push(Page::new("Media"));
         c.keys.get_mut(0).action = Action::Page { page: "Media".into() };
         c.page_mut(Some("Media")).unwrap().get_mut(2).action = Action::Page { page: "Media".into() };
         assert_eq!(c.links_to("Media"), 2);
@@ -532,7 +590,7 @@ mod tests {
         let mut c = Config::default();
         c.keys.get_mut(4).label = "b".into();
         c.keys.get_mut(1).label = "a".into();
-        c.pages.push(Page { name: "P".into(), keys: Keys::default() });
+        c.pages.push(Page::new("P"));
         c.page_mut(Some("P")).unwrap().get_mut(3);
         c.save_to(&path).unwrap();
         let back = Config::load_from(&path).unwrap();
@@ -545,7 +603,7 @@ mod tests {
     fn undo_page_delete() {
         let mut c = Config::default();
         for n in ["A", "B", "C"] {
-            c.pages.push(Page { name: n.into(), keys: Keys::default() });
+            c.pages.push(Page::new(n));
         }
         c.keys.get_mut(0).action = Action::Page { page: "B".into() };
         c.page_mut(Some("A")).unwrap().get_mut(2).action = Action::Page { page: "B".into() };
@@ -570,7 +628,7 @@ mod tests {
     #[test]
     fn way_out() {
         let mut c = Config::default();
-        c.pages.push(Page { name: "P".into(), keys: Keys::default() });
+        c.pages.push(Page::new("P"));
         assert!(c.has_way_out(None));
         assert!(!c.has_way_out(Some("P")));
         c.page_mut(Some("P")).unwrap().get_mut(3).action = Action::Page { page: "P".into() };
@@ -593,6 +651,69 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
         assert!(still_link);
         assert_eq!(back.keys.iter().next().unwrap().label, "via link");
+    }
+
+    const FUTURE: &str = include_str!("fixtures/future.toml");
+
+    fn temp_file(name: &str) -> std::path::PathBuf {
+        std::env::temp_dir().join(format!("omadeck-test-{}-{name}", std::process::id()))
+    }
+
+    #[test]
+    fn unknown_action_type_loads_and_the_rest_of_the_deck_still_works() {
+        let c = Config::parse(FUTURE).expect("a newer config still loads");
+        assert_eq!(c.brightness, 60);
+        assert_eq!(c.key(None, 0).unwrap().action, Action::App { command: "xdg-terminal-exec".into() });
+        assert_eq!(c.key(None, 1).unwrap().label, "Scene");
+        assert_eq!(c.key(Some("Media"), 0).unwrap().action, Action::Back);
+    }
+
+    #[test]
+    fn unknown_fields_survive_a_save_at_every_level() {
+        let path = temp_file("future.toml");
+        Config::parse(FUTURE).unwrap().save_to(&path).unwrap();
+        let saved = std::fs::read_to_string(&path).unwrap();
+        let _ = std::fs::remove_file(&path);
+        let want: toml::Table = toml::from_str(FUTURE).unwrap();
+        let got: toml::Table = toml::from_str(&saved).unwrap();
+        assert_eq!(got, want, "saved file:\n{saved}");
+    }
+
+    #[test]
+    fn unknown_action_survives_a_save_unchanged() {
+        let c = Config::parse(FUTURE).unwrap();
+        let back = Config::parse(&toml::to_string_pretty(&c).unwrap()).unwrap();
+        assert_eq!(back, c);
+        let stinger = &back.key(Some("Media"), 1).unwrap().action;
+        let text = toml::to_string(&back).unwrap();
+        assert!(text.contains("point_ms = 900"), "nested settings kept: {stinger:?}");
+    }
+
+    #[test]
+    fn every_known_kind_is_listed_in_types() {
+        for (i, ty) in Action::TYPES.iter().enumerate() {
+            let table = toml::Table::try_from(Action::empty_of_kind(i)).unwrap();
+            assert_eq!(table["type"].as_str(), Some(*ty), "TYPES[{i}] drifted from the enum");
+            assert_eq!(Action::empty_of_kind(i).kind_index(), i);
+        }
+    }
+
+    #[test]
+    fn a_mistake_in_a_known_action_is_still_an_error() {
+        let missing_field = "[[key]]\nindex = 0\n[key.action]\ntype = \"url\"\n";
+        let err = Config::parse(missing_field).unwrap_err();
+        assert!(format!("{err:#}").contains("url"), "{err:#}");
+        let no_type = "[[key]]\nindex = 0\n[key.action]\ncommand = \"x\"\n";
+        assert!(Config::parse(no_type).is_err());
+    }
+
+    #[test]
+    fn known_configs_save_exactly_as_before() {
+        let path = temp_file("example.toml");
+        let c = Config::parse(include_str!("../../../examples/config.toml")).unwrap();
+        let saved = c.save_to(&path).unwrap();
+        let _ = std::fs::remove_file(&path);
+        assert_eq!(saved, include_str!("fixtures/example.saved.toml"), "0.2.0 wrote exactly this");
     }
 
     #[test]

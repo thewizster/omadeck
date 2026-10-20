@@ -29,10 +29,14 @@ pub fn build(app: &Rc<App>, i: u8) -> gtk::Widget {
     let buttons = gtk::Box::new(gtk::Orientation::Horizontal, 6);
     let test = gtk::Button::builder()
         .icon_name("media-playback-start-symbolic")
-        .tooltip_text(if key.action == Action::Back { "Back only works on the deck" } else { "Try it now" })
+        .tooltip_text(match key.action {
+            Action::Back => "Back only works on the deck",
+            Action::Unknown { .. } => "This action needs a newer omadeck",
+            _ => "Try it now",
+        })
         .valign(gtk::Align::Center)
         .sensitive(match &key.action {
-            Action::None | Action::Back => false,
+            Action::None | Action::Back | Action::Unknown { .. } => false,
             Action::Page { page } => app.config.borrow().has_page(page),
             _ => true,
         })
@@ -61,6 +65,10 @@ pub fn build(app: &Rc<App>, i: u8) -> gtk::Widget {
     group.set_header_suffix(Some(&buttons));
 
     let kinds = gtk::StringList::new(&Action::KINDS);
+    if let Action::Unknown { kind, .. } = &key.action {
+        // Listed last so the row shows it; it's at `Action::UNKNOWN`.
+        kinds.append(kind);
+    }
     let kind_row = adw::ComboRow::builder().title("When pressed").model(&kinds).build();
     kind_row.set_selected(key.action.kind_index() as u32);
     match key.action {
@@ -75,6 +83,7 @@ pub fn build(app: &Rc<App>, i: u8) -> gtk::Widget {
         if sel == cur {
             return;
         }
+        let old = a.key(i).map(|k| k.action).filter(|old| matches!(old, Action::Unknown { .. }));
         let mut action = Action::empty_of_kind(sel);
         if let Action::Page { page } = &mut action {
             // Nothing to choose from yet: make the page, like creating a folder.
@@ -85,6 +94,9 @@ pub fn build(app: &Rc<App>, i: u8) -> gtk::Widget {
         }
         a.edit(i, |k| k.action = action);
         a.rebuild_editor();
+        if let Some(old) = old {
+            a.offer_undo_replaced(i, old);
+        }
     });
     group.add(&kind_row);
     action_rows(app, i, &key, &group);
@@ -149,6 +161,20 @@ pub fn build(app: &Rc<App>, i: u8) -> gtk::Widget {
 fn action_rows(app: &Rc<App>, i: u8, key: &KeyConfig, group: &adw::PreferencesGroup) {
     match &key.action {
         Action::None => {}
+
+        Action::Unknown { kind, .. } => {
+            let row = adw::ActionRow::builder()
+                .title("From a newer omadeck")
+                .subtitle(format!(
+                    "This key's action, “{kind}”, comes from a newer version of omadeck. It's kept as is; \
+                     choose another action above to replace it."
+                ))
+                .subtitle_lines(0)
+                .use_markup(false)
+                .build();
+            row.add_prefix(&gtk::Image::from_icon_name("software-update-available-symbolic"));
+            group.add(&row);
+        }
 
         Action::App { command } => {
             let found = apps::find(command);

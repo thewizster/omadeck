@@ -1,0 +1,79 @@
+# omadeck configuration - edit by hand or with the `omadeck` app.
+
+brightness = 70
+
+[style]
+follow_theme = true
+
+[[key]]
+index = 0
+label = "btop"
+icon = "/usr/share/icons/hicolor/scalable/apps/btop.svg"
+
+[key.action]
+type = "app"
+command = "xdg-terminal-exec btop"
+
+[[key]]
+index = 1
+label = "Omarchy"
+icon = "/usr/share/pixmaps/omarchy.png"
+
+[key.action]
+type = "url"
+url = "https://omarchy.org"
+
+[[key]]
+index = 2
+label = "Workspace 1"
+
+[key.action]
+type = "hyprland"
+dispatch = "workspace 1"
+
+[[key]]
+index = 3
+label = "Ding"
+background = "#e8905a"
+
+[key.action]
+type = "sound"
+file = "/usr/share/sounds/freedesktop/stereo/complete.oga"
+volume = 0.8
+
+[[key]]
+index = 4
+label = "Backup"
+
+[key.action]
+type = "script"
+path = "~/bin/backup.sh"
+terminal = true
+
+[[key]]
+index = 5
+label = "Media"
+glyph = "f024b"
+
+[key.action]
+type = "page"
+page = "Media"
+
+[[page]]
+name = "Media"
+
+[[page.key]]
+index = 0
+label = "Back"
+glyph = "f004d"
+
+[page.key.action]
+type = "back"
+
+[[page.key]]
+index = 1
+label = "Play/Pause"
+
+[page.key.action]
+type = "app"
+command = "playerctl play-pause"

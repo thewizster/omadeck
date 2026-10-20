@@ -716,7 +716,7 @@ impl App {
     pub fn add_page(self: &Rc<Self>, name: &str) -> String {
         let mut cfg = self.config.borrow_mut();
         let name = cfg.unique_page_name(name);
-        cfg.pages.push(Page { name: name.clone(), keys: Keys(vec![back_key()]) });
+        cfg.pages.push(Page { keys: Keys(vec![back_key()]), ..Page::new(name.clone()) });
         drop(cfg);
         self.sync_page_list();
         self.schedule_save();
@@ -860,6 +860,17 @@ impl App {
     }
 
     /// A toast with an Undo button, for edits that throw something away.
+    /// Key `i`'s action from a newer omadeck was just replaced: offer to put it back.
+    pub fn offer_undo_replaced(self: &Rc<Self>, i: u8, old: Action) {
+        let at = self.key_ref(i);
+        self.toast_undo("Replaced an action from a newer omadeck", move |app| {
+            let old = old.clone();
+            if app.edit_ref(&at, move |k| k.action = old) {
+                app.rebuild_editor();
+            }
+        });
+    }
+
     fn toast_undo(self: &Rc<Self>, msg: &str, undo: impl Fn(&Rc<Self>) + 'static) {
         let t = adw::Toast::builder().title(glib::markup_escape_text(msg)).button_label("Undo").timeout(10).build();
         let weak = Rc::downgrade(self);

@@ -7,6 +7,10 @@ All notable changes to omadeck are documented here. The format follows
 ## [Unreleased]
 
 ### Fixed
+- A config from a newer omadeck no longer blanks the deck. A key whose action type this
+  version doesn't know is drawn as usual, says it needs a newer omadeck when pressed, and is
+  kept as written. Settings this version doesn't know are no longer dropped when the app
+  saves.
 - A stalled Hyprland could freeze the deck: Hyprland actions waited on `hyprctl` with no time
   limit, on the same loop that reads the keys. They now run in order on their own thread, and
   `hyprctl` gets two seconds to answer. Thanks to

@@ -61,10 +61,10 @@ impl Nav {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use omadeck_core::{Keys, Page};
+    use omadeck_core::Page;
 
     fn cfg(pages: &[&str]) -> Config {
-        let pages = pages.iter().map(|n| Page { name: n.to_string(), keys: Keys::default() }).collect();
+        let pages = pages.iter().map(|n| Page::new(*n)).collect();
         Config { pages, ..Config::default() }
     }
 

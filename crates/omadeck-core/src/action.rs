@@ -22,6 +22,7 @@ pub fn run(action: &Action) -> Result<()> {
         Action::Url { url } => open_url(url),
         Action::Hyprland { dispatch } => hypr_dispatch(dispatch),
         Action::Page { .. } | Action::Back => bail!("changing pages only works on the deck"),
+        Action::Unknown { kind, .. } => bail!("this key needs a newer omadeck (its action is “{kind}”)"),
     }
 }
 
@@ -273,6 +274,13 @@ mod tests {
         let err = output_within(hang, Duration::from_millis(200)).unwrap_err();
         assert!(start.elapsed() < Duration::from_secs(1), "took {:?}", start.elapsed());
         assert!(err.to_string().contains("no answer"), "{err}");
+    }
+
+    #[test]
+    fn running_an_unknown_action_says_a_newer_version_is_needed() {
+        let act = Action::Unknown { kind: "obs_scene".into(), raw: toml::Table::new() };
+        let err = run(&act).unwrap_err().to_string();
+        assert!(err.contains("newer omadeck") && err.contains("obs_scene"), "{err}");
     }
 
     #[test]
