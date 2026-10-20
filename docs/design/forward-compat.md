@@ -46,7 +46,7 @@ In `crates/omadeck-core`, using `src/fixtures/future.toml`, a config "from a fut
 | `unknown_action_survives_a_save_unchanged` | 3 |
 | `unknown_fields_survive_a_save_at_every_level` | 3, 4 |
 | `a_mistake_in_a_known_action_is_still_an_error` | 6 |
-| `known_configs_save_exactly_as_before` (golden file `example.saved.toml`, written by 0.2.0) | 7 |
+| `known_configs_save_exactly_as_before` (0.2.0's example `v0.2.toml`, and `v0.2.saved.toml` as 0.2.0 saved it) | 7 |
 | `every_known_kind_is_listed_in_types` | keeps `TYPES` in step with the enum |
 
 ## Manual checks

@@ -161,6 +161,9 @@ pub struct KeyConfig {
     pub label_color: Option<String>,
     #[serde(default, with = "keep_unknown")]
     pub action: Action,
+    /// Run when the key is let go, e.g. to stop what `action` started (push-to-talk).
+    #[serde(default, skip_serializing_if = "Option::is_none", with = "keep_unknown::option")]
+    pub on_release: Option<Action>,
     #[serde(flatten, default, skip_serializing_if = "toml::Table::is_empty")]
     pub extra: toml::Table,
 }
@@ -176,6 +179,7 @@ impl KeyConfig {
             background: None,
             label_color: None,
             action: Action::None,
+            on_release: None,
             extra: toml::Table::new(),
         }
     }
@@ -188,6 +192,7 @@ impl KeyConfig {
             && self.background.is_none()
             && self.label_color.is_none()
             && self.action == Action::None
+            && self.on_release.is_none()
             && self.extra.is_empty()
     }
 }
@@ -245,6 +250,23 @@ mod keep_unknown {
             Some(kind) if !Action::TYPES.contains(&kind) => Ok(Action::Unknown { kind: kind.to_string(), raw }),
             // Known types, and a missing `type`, report their errors as before.
             _ => Action::deserialize(toml::Value::Table(raw)).map_err(serde::de::Error::custom),
+        }
+    }
+
+    /// The same for an optional action. Only called when the field is present.
+    pub mod option {
+        use super::Action;
+        use serde::{Deserializer, Serializer};
+
+        pub fn serialize<S: Serializer>(action: &Option<Action>, s: S) -> Result<S::Ok, S::Error> {
+            match action {
+                Some(a) => super::serialize(a, s),
+                None => s.serialize_none(),
+            }
+        }
+
+        pub fn deserialize<'de, D: Deserializer<'de>>(d: D) -> Result<Option<Action>, D::Error> {
+            super::deserialize(d).map(Some)
         }
     }
 }
@@ -708,12 +730,43 @@ mod tests {
     }
 
     #[test]
+    fn on_release_roundtrips() {
+        let src = "[[key]]\nindex = 2\nlabel = \"Talk\"\n\n[key.action]\ntype = \"app\"\ncommand = \"voxtype record start\"\n\n\
+                   [key.on_release]\ntype = \"app\"\ncommand = \"voxtype record stop\"\n";
+        let c = Config::parse(src).unwrap();
+        let k = c.key(None, 2).unwrap();
+        assert_eq!(k.on_release, Some(Action::App { command: "voxtype record stop".into() }));
+        assert_eq!(Config::parse(&toml::to_string_pretty(&c).unwrap()).unwrap(), c);
+        // Keys without one don't grow an empty table.
+        assert!(!toml::to_string(&Config::parse(FUTURE).unwrap()).unwrap().contains("on_release"));
+    }
+
+    #[test]
+    fn an_unknown_release_action_is_kept_too() {
+        let src = "[[key]]\nindex = 0\n[key.on_release]\ntype = \"obs_scene\"\nscene = \"Off\"\n";
+        let c = Config::parse(src).unwrap();
+        assert!(
+            matches!(&c.key(None, 0).unwrap().on_release, Some(Action::Unknown { kind, .. }) if kind == "obs_scene")
+        );
+        assert!(toml::to_string(&c).unwrap().contains("scene = \"Off\""));
+    }
+
+    #[test]
+    fn a_key_with_only_a_release_action_is_not_blank() {
+        let mut k = KeyConfig::new(0);
+        assert!(k.is_blank());
+        k.on_release = Some(Action::App { command: "voxtype record stop".into() });
+        assert!(!k.is_blank(), "saving would drop it");
+    }
+
+    #[test]
     fn known_configs_save_exactly_as_before() {
         let path = temp_file("example.toml");
-        let c = Config::parse(include_str!("../../../examples/config.toml")).unwrap();
+        // 0.2.0's example config, and exactly what 0.2.0 wrote when it saved it.
+        let c = Config::parse(include_str!("fixtures/v0.2.toml")).unwrap();
         let saved = c.save_to(&path).unwrap();
         let _ = std::fs::remove_file(&path);
-        assert_eq!(saved, include_str!("fixtures/example.saved.toml"), "0.2.0 wrote exactly this");
+        assert_eq!(saved, include_str!("fixtures/v0.2.saved.toml"));
     }
 
     #[test]
