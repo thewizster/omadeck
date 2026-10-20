@@ -1,6 +1,7 @@
 //! omadeckd — owns the Stream Deck: paints key faces, runs actions on press, follows
 //! config and Omarchy theme changes live, and survives unplug/replug.
 
+mod hold;
 mod hub;
 mod nav;
 mod worker;
@@ -18,6 +19,7 @@ use omadeck_core::ipc::{Command, Event};
 use omadeck_core::paths::FileStamp;
 use omadeck_core::{Action, Config, DeckInfo, Renderer, action, paths};
 
+use hold::Hold;
 use hub::Hub;
 use nav::Nav;
 use worker::Worker;
@@ -68,6 +70,14 @@ fn main() {
                 eprintln!("{e:#}");
                 std::process::exit(1);
             }
+            // A press from the command line is a tap: let go at once, so nothing stays held.
+            if let Some(release) = keys.get(i).and_then(|k| k.on_release.clone()).filter(|a| !a.is_navigation()) {
+                println!("key {i} released: {}", release.summary());
+                if let Err(e) = action::run(&release) {
+                    eprintln!("{e:#}");
+                    std::process::exit(1);
+                }
+            }
             // Give the detached child a moment to start before we exit.
             std::thread::sleep(Duration::from_millis(300));
             return;
@@ -112,6 +122,7 @@ fn run() -> Result<()> {
 
     let hub = Hub::start(socket)?;
     let worker = Worker::start().context("starting the action worker")?;
+    let mut hold = Hold::default();
 
     // Watch the config dir and Omarchy's theme state for changes.
     std::fs::create_dir_all(paths::config_dir())?;
@@ -254,18 +265,20 @@ fn run() -> Result<()> {
                         DeviceStateUpdate::ButtonDown(i) => {
                             paint(d, &cfg, nav.current(), &mut renderer, i, true);
                             hub.publish(Event::KeyDown { index: i, page: nav.current().map(str::to_string) });
-                            let Some(k) = cfg.key(nav.current(), i) else { continue };
+                            let k = cfg.key(nav.current(), i);
+                            if let Some(missed) = hold.press(i, k.and_then(|k| k.on_release.as_ref())) {
+                                fire(&worker, &hub, i, &missed);
+                            }
+                            let Some(k) = k else { continue };
                             log::info!("key {i}: {}", k.action.summary());
                             let moved = match &k.action {
                                 Action::Page { page } if cfg.has_page(page) => Ok(nav.go(Some(page))),
                                 Action::Page { page } => Err(anyhow::anyhow!("there's no page named “{page}”")),
                                 Action::Back => Ok(nav.back()),
-                                // hyprctl waits for Hyprland's answer; the deck shouldn't.
-                                a @ Action::Hyprland { .. } => {
-                                    worker.run(i, a.clone());
+                                a => {
+                                    fire(&worker, &hub, i, a);
                                     Ok(false)
                                 }
-                                a => action::run(a).map(|_| false),
                             };
                             match moved {
                                 Ok(true) => show_page(Some(d), &cfg, &nav, &mut renderer, &hub),
@@ -279,6 +292,10 @@ fn run() -> Result<()> {
                         DeviceStateUpdate::ButtonUp(i) => {
                             paint(d, &cfg, nav.current(), &mut renderer, i, false);
                             hub.publish(Event::KeyUp { index: i });
+                            if let Some(a) = hold.release(i) {
+                                log::info!("key {i} released: {}", a.summary());
+                                fire(&worker, &hub, i, &a);
+                            }
                         }
                         _ => {}
                     }
@@ -287,6 +304,10 @@ fn run() -> Result<()> {
             Err(_) if term.load(Ordering::Relaxed) => break,
             Err(e) => {
                 log::warn!("lost {} ({e}); waiting for it to come back", d.info.model);
+                for (i, a) in hold.drain() {
+                    log::info!("key {i} was held when the deck went away; releasing: {}", a.summary());
+                    fire(&worker, &hub, i, &a);
+                }
                 deck = None;
                 last_scan = None;
                 hub.publish(Event::Disconnected);
@@ -295,12 +316,30 @@ fn run() -> Result<()> {
     }
 
     log::info!("shutting down");
+    // Run these here, not on the worker: the process is about to exit.
+    for (i, a) in hold.drain() {
+        log::info!("key {i} was held at shutdown; releasing: {}", a.summary());
+        if let Err(e) = action::run(&a) {
+            log::warn!("key {i}: {e:#}");
+        }
+    }
     if let Some(d) = deck {
         // Hand the deck back to its idle logo screen.
         let _ = d.dev.reset();
     }
     hub.shutdown();
     Ok(())
+}
+
+/// Run key `i`'s action, reporting a failure to the log and the configurator. Hyprland actions
+/// go to the worker: `hyprctl` waits for Hyprland's answer, and the deck shouldn't.
+fn fire(worker: &Worker, hub: &Hub, i: u8, a: &Action) {
+    if let Action::Hyprland { .. } = a {
+        worker.run(i, a.clone());
+    } else if let Err(e) = action::run(a) {
+        log::warn!("key {i}: {e:#}");
+        hub.publish(Event::ActionFailed { index: i, message: format!("{e:#}") });
+    }
 }
 
 fn relevant(p: &Path) -> bool {

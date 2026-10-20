@@ -27,30 +27,7 @@ pub fn build(app: &Rc<App>, i: u8) -> gtk::Widget {
         .build();
 
     let buttons = gtk::Box::new(gtk::Orientation::Horizontal, 6);
-    let test = gtk::Button::builder()
-        .icon_name("media-playback-start-symbolic")
-        .tooltip_text(match key.action {
-            Action::Back => "Back only works on the deck",
-            Action::Unknown { .. } => "This action needs a newer omadeck",
-            _ => "Try it now",
-        })
-        .valign(gtk::Align::Center)
-        .sensitive(match &key.action {
-            Action::None | Action::Back | Action::Unknown { .. } => false,
-            Action::Page { page } => app.config.borrow().has_page(page),
-            _ => true,
-        })
-        .css_classes(["flat"])
-        .build();
-    let a = app.clone();
-    test.connect_clicked(move |_| {
-        let act = a.key(i).map(|k| k.action).unwrap_or_default();
-        if let Action::Page { page } = act {
-            a.show_page(Some(page), true);
-        } else if let Err(e) = action::run(&act) {
-            a.toast(&format!("{e:#}"));
-        }
-    });
+    let test = test_button(app, i, Slot::Press, &key.action);
     let clear = gtk::Button::builder()
         .icon_name("user-trash-symbolic")
         .tooltip_text("Clear this key")
@@ -64,43 +41,20 @@ pub fn build(app: &Rc<App>, i: u8) -> gtk::Widget {
     buttons.append(&clear);
     group.set_header_suffix(Some(&buttons));
 
-    let kinds = gtk::StringList::new(&Action::KINDS);
-    if let Action::Unknown { kind, .. } = &key.action {
-        // Listed last so the row shows it; it's at `Action::UNKNOWN`.
-        kinds.append(kind);
-    }
-    let kind_row = adw::ComboRow::builder().title("When pressed").model(&kinds).build();
-    kind_row.set_selected(key.action.kind_index() as u32);
-    match key.action {
-        Action::Page { .. } => kind_row.set_subtitle("Shows another page of keys on the deck"),
-        Action::Back => kind_row.set_subtitle("Returns to the page shown before this one, or Home"),
-        _ => {}
-    }
-    let a = app.clone();
-    kind_row.connect_selected_notify(move |row| {
-        let sel = row.selected() as usize;
-        let cur = a.key(i).map(|k| k.action.kind_index()).unwrap_or(0);
-        if sel == cur {
-            return;
-        }
-        let old = a.key(i).map(|k| k.action).filter(|old| matches!(old, Action::Unknown { .. }));
-        let mut action = Action::empty_of_kind(sel);
-        if let Action::Page { page } = &mut action {
-            // Nothing to choose from yet: make the page, like creating a folder.
-            let others = a.config.borrow().pages.iter().any(|p| Some(&p.name) != a.current_page().as_ref());
-            if !others {
-                *page = new_folder(&a, i);
-            }
-        }
-        a.edit(i, |k| k.action = action);
-        a.rebuild_editor();
-        if let Some(old) = old {
-            a.offer_undo_replaced(i, old);
-        }
-    });
-    group.add(&kind_row);
-    action_rows(app, i, &key, &group);
+    group.add(&kind_row(app, i, Slot::Press, &key.action));
+    action_rows(app, i, Slot::Press, &key.action, &group);
     page.add(&group);
+
+    // --- release --------------------------------------------------------------------------
+    let release = key.on_release.clone().unwrap_or_default();
+    let held = adw::PreferencesGroup::builder()
+        .title("When released")
+        .description("For push-to-talk and other keys you hold down")
+        .build();
+    held.set_header_suffix(Some(&test_button(app, i, Slot::Release, &release)));
+    held.add(&kind_row(app, i, Slot::Release, &release));
+    action_rows(app, i, Slot::Release, &release, &held);
+    page.add(&held);
 
     // --- appearance -----------------------------------------------------------------------
     let look = adw::PreferencesGroup::builder().title("Appearance").build();
@@ -158,8 +112,120 @@ pub fn build(app: &Rc<App>, i: u8) -> gtk::Widget {
     page.upcast()
 }
 
-fn action_rows(app: &Rc<App>, i: u8, key: &KeyConfig, group: &adw::PreferencesGroup) {
-    match &key.action {
+/// Which of a key's two actions an editor row changes.
+#[derive(Clone, Copy, PartialEq)]
+enum Slot {
+    Press,
+    Release,
+}
+
+impl Slot {
+    fn get(self, k: &KeyConfig) -> Action {
+        match self {
+            Slot::Press => k.action.clone(),
+            Slot::Release => k.on_release.clone().unwrap_or_default(),
+        }
+    }
+
+    fn get_mut(self, k: &mut KeyConfig) -> &mut Action {
+        match self {
+            Slot::Press => &mut k.action,
+            Slot::Release => k.on_release.get_or_insert_with(Action::default),
+        }
+    }
+
+    fn set(self, k: &mut KeyConfig, a: Action) {
+        match self {
+            // "Nothing" on release means no release action at all.
+            Slot::Release if a == Action::None => k.on_release = None,
+            _ => *self.get_mut(k) = a,
+        }
+    }
+
+    /// How many of `Action::KINDS` this slot offers: a release can't change pages.
+    fn kinds(self) -> usize {
+        match self {
+            Slot::Press => Action::KINDS.len(),
+            Slot::Release => Action::KINDS.len() - 2,
+        }
+    }
+}
+
+/// ▶: try the slot's action from the editor.
+fn test_button(app: &Rc<App>, i: u8, slot: Slot, current: &Action) -> gtk::Button {
+    let test = gtk::Button::builder()
+        .icon_name("media-playback-start-symbolic")
+        .tooltip_text(match current {
+            Action::Back => "Back only works on the deck",
+            Action::Unknown { .. } => "This action needs a newer omadeck",
+            _ => "Try it now",
+        })
+        .valign(gtk::Align::Center)
+        .sensitive(match current {
+            Action::None | Action::Back | Action::Unknown { .. } => false,
+            Action::Page { page } => app.config.borrow().has_page(page),
+            _ => true,
+        })
+        .css_classes(["flat"])
+        .build();
+    let a = app.clone();
+    test.connect_clicked(move |_| {
+        let act = a.key(i).map(|k| slot.get(&k)).unwrap_or_default();
+        if let Action::Page { page } = act {
+            a.show_page(Some(page), true);
+        } else if let Err(e) = action::run(&act) {
+            a.toast(&format!("{e:#}"));
+        }
+    });
+    test
+}
+
+/// The "When pressed" / "When released" picker.
+fn kind_row(app: &Rc<App>, i: u8, slot: Slot, current: &Action) -> adw::ComboRow {
+    let offered = slot.kinds();
+    let kinds = gtk::StringList::new(&Action::KINDS[..offered]);
+    let shown = match current {
+        Action::Unknown { kind, .. } => {
+            // Listed last so the row can show it.
+            kinds.append(kind);
+            offered
+        }
+        a => a.kind_index(),
+    };
+    let title = if slot == Slot::Press { "When pressed" } else { "Action" };
+    let row = adw::ComboRow::builder().title(title).model(&kinds).build();
+    row.set_selected(shown as u32);
+    match current {
+        Action::Page { .. } => row.set_subtitle("Shows another page of keys on the deck"),
+        Action::Back => row.set_subtitle("Returns to the page shown before this one, or Home"),
+        _ => {}
+    }
+    let a = app.clone();
+    row.connect_selected_notify(move |row| {
+        let sel = row.selected() as usize;
+        if sel == shown || sel >= offered {
+            return;
+        }
+        let old = a.key(i).map(|k| slot.get(&k)).filter(|old| matches!(old, Action::Unknown { .. }));
+        let mut action = Action::empty_of_kind(sel);
+        if let Action::Page { page } = &mut action {
+            // Nothing to choose from yet: make the page, like creating a folder.
+            let others = a.config.borrow().pages.iter().any(|p| Some(&p.name) != a.current_page().as_ref());
+            if !others {
+                *page = new_folder(&a, i);
+            }
+        }
+        a.edit(i, |k| slot.set(k, action));
+        a.rebuild_editor();
+        if let Some(old) = old {
+            a.offer_undo_replaced(i, move |k| slot.set(k, old.clone()));
+        }
+    });
+    row
+}
+
+fn action_rows(app: &Rc<App>, i: u8, slot: Slot, current: &Action, group: &adw::PreferencesGroup) {
+    match current {
         Action::None => {}
 
         Action::Unknown { kind, .. } => {
@@ -204,10 +270,13 @@ fn action_rows(app: &Rc<App>, i: u8, key: &KeyConfig, group: &adw::PreferencesGr
                     let icon = media::import_app_icon(&info);
                     let name = info.display_name().to_string();
                     a2.edit_ref(&at, |k| {
-                        k.action = Action::App { command };
-                        k.label = name;
-                        if icon.is_some() {
-                            k.icon = icon;
+                        slot.set(k, Action::App { command });
+                        // The key's face follows what it launches when pressed, not on release.
+                        if slot == Slot::Press {
+                            k.label = name;
+                            if icon.is_some() {
+                                k.icon = icon;
+                            }
                         }
                     });
                     a2.rebuild_editor();
@@ -221,7 +290,7 @@ fn action_rows(app: &Rc<App>, i: u8, key: &KeyConfig, group: &adw::PreferencesGr
             let a = app.clone();
             cmd.connect_changed(move |e| {
                 let command = e.text().to_string();
-                a.edit(i, |k| k.action = Action::App { command });
+                a.edit(i, |k| slot.set(k, Action::App { command }));
             });
             group.add(&cmd);
         }
@@ -232,11 +301,11 @@ fn action_rows(app: &Rc<App>, i: u8, key: &KeyConfig, group: &adw::PreferencesGr
             let t = *terminal;
             row.connect_changed(move |e| {
                 let path = e.text().to_string();
-                a.edit(i, |k| k.action = Action::Script { path, terminal: t });
+                a.edit(i, |k| slot.set(k, Action::Script { path, terminal: t }));
             });
             row.add_suffix(&browse_button(app, i, "Choose a script", None, move |a, at, p| {
                 let path = paths::portable(&p);
-                a.edit_ref(at, |k| k.action = Action::Script { path, terminal: t });
+                a.edit_ref(at, |k| slot.set(k, Action::Script { path, terminal: t }));
             }));
             group.add(&row);
 
@@ -249,7 +318,7 @@ fn action_rows(app: &Rc<App>, i: u8, key: &KeyConfig, group: &adw::PreferencesGr
             term.connect_active_notify(move |r| {
                 let on = r.is_active();
                 a.edit(i, |k| {
-                    if let Action::Script { terminal, .. } = &mut k.action {
+                    if let Action::Script { terminal, .. } = slot.get_mut(k) {
                         *terminal = on;
                     }
                 });
@@ -264,11 +333,11 @@ fn action_rows(app: &Rc<App>, i: u8, key: &KeyConfig, group: &adw::PreferencesGr
             let v = *volume;
             row.connect_changed(move |e| {
                 let file = e.text().to_string();
-                a.edit(i, |k| k.action = Action::Sound { file, volume: v });
+                a.edit(i, |k| slot.set(k, Action::Sound { file, volume: v }));
             });
             row.add_suffix(&browse_button(app, i, "Choose a sound", Some(("Audio", "audio/*")), move |a, at, p| {
                 let file = paths::portable(&p);
-                a.edit_ref(at, |k| k.action = Action::Sound { file, volume: v });
+                a.edit_ref(at, |k| slot.set(k, Action::Sound { file, volume: v }));
             }));
             group.add(&row);
 
@@ -279,7 +348,7 @@ fn action_rows(app: &Rc<App>, i: u8, key: &KeyConfig, group: &adw::PreferencesGr
             vol.connect_value_notify(move |r| {
                 let pct = r.value() as f32 / 100.0;
                 a.edit(i, |k| {
-                    if let Action::Sound { volume, .. } = &mut k.action {
+                    if let Action::Sound { volume, .. } = slot.get_mut(k) {
                         *volume = if (pct - 1.0).abs() < f32::EPSILON { None } else { Some(pct) };
                     }
                 });
@@ -292,7 +361,7 @@ fn action_rows(app: &Rc<App>, i: u8, key: &KeyConfig, group: &adw::PreferencesGr
             let a = app.clone();
             row.connect_changed(move |e| {
                 let url = e.text().to_string();
-                a.edit(i, |k| k.action = Action::Url { url });
+                a.edit(i, |k| slot.set(k, Action::Url { url }));
             });
             group.add(&row);
 
@@ -303,7 +372,7 @@ fn action_rows(app: &Rc<App>, i: u8, key: &KeyConfig, group: &adw::PreferencesGr
             let fetch = gtk::Button::builder().label("Fetch").valign(gtk::Align::Center).build();
             let a = app.clone();
             fetch.connect_clicked(move |btn| {
-                let url = match a.key(i).map(|k| k.action) {
+                let url = match a.key(i).map(|k| slot.get(&k)) {
                     Some(Action::Url { url }) if !url.trim().is_empty() => url,
                     _ => {
                         a.toast("Enter a website first");
@@ -352,7 +421,7 @@ fn action_rows(app: &Rc<App>, i: u8, key: &KeyConfig, group: &adw::PreferencesGr
             let a = app.clone();
             row.connect_changed(move |e| {
                 let dispatch = e.text().to_string();
-                a.edit(i, |k| k.action = Action::Hyprland { dispatch });
+                a.edit(i, |k| slot.set(k, Action::Hyprland { dispatch }));
             });
             group.add(&row);
         }
@@ -373,7 +442,7 @@ fn action_rows(app: &Rc<App>, i: u8, key: &KeyConfig, group: &adw::PreferencesGr
             let a = app.clone();
             row.connect_selected_notify(move |r| {
                 if let Some(Some(name)) = choices.get(r.selected() as usize).cloned() {
-                    a.edit(i, |k| k.action = Action::Page { page: name });
+                    a.edit(i, |k| slot.set(k, Action::Page { page: name }));
                     a.rebuild_editor();
                 }
             });
@@ -394,7 +463,7 @@ fn action_rows(app: &Rc<App>, i: u8, key: &KeyConfig, group: &adw::PreferencesGr
             let a = app.clone();
             new.connect_clicked(move |_| {
                 let name = new_folder(&a, i);
-                a.edit(i, |k| k.action = Action::Page { page: name });
+                a.edit(i, |k| slot.set(k, Action::Page { page: name }));
                 a.rebuild_editor();
             });
             buttons.add_suffix(&new);
@@ -565,4 +634,42 @@ fn browse_button(
         });
     });
     btn
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn app(cmd: &str) -> Action {
+        Action::App { command: cmd.into() }
+    }
+
+    #[test]
+    fn each_slot_edits_its_own_action() {
+        let mut k = KeyConfig::new(0);
+        Slot::Press.set(&mut k, app("voxtype record start"));
+        Slot::Release.set(&mut k, app("voxtype record stop"));
+        assert_eq!(k.action, app("voxtype record start"));
+        assert_eq!(k.on_release, Some(app("voxtype record stop")));
+        assert_eq!(Slot::Release.get(&k), app("voxtype record stop"));
+    }
+
+    #[test]
+    fn nothing_on_release_removes_the_release_action() {
+        let mut k = KeyConfig::new(0);
+        Slot::Release.set(&mut k, app("stop"));
+        Slot::Release.set(&mut k, Action::None);
+        assert_eq!(k.on_release, None, "no empty [key.on_release] left in the file");
+        assert!(k.is_blank());
+    }
+
+    #[test]
+    fn a_release_cant_be_set_to_change_pages() {
+        let offered = &Action::KINDS[..Slot::Release.kinds()];
+        assert!(!offered.contains(&"Open page") && !offered.contains(&"Go back"), "{offered:?}");
+        assert_eq!(Slot::Press.kinds(), Action::KINDS.len());
+        for kind in 0..Slot::Release.kinds() {
+            assert!(!Action::empty_of_kind(kind).is_navigation());
+        }
+    }
 }

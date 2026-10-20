@@ -860,12 +860,11 @@ impl App {
     }
 
     /// A toast with an Undo button, for edits that throw something away.
-    /// Key `i`'s action from a newer omadeck was just replaced: offer to put it back.
-    pub fn offer_undo_replaced(self: &Rc<Self>, i: u8, old: Action) {
+    /// An action from a newer omadeck on key `i` was just replaced; `restore` puts it back.
+    pub fn offer_undo_replaced(self: &Rc<Self>, i: u8, restore: impl Fn(&mut KeyConfig) + 'static) {
         let at = self.key_ref(i);
         self.toast_undo("Replaced an action from a newer omadeck", move |app| {
-            let old = old.clone();
-            if app.edit_ref(&at, move |k| k.action = old) {
+            if app.edit_ref(&at, &restore) {
                 app.rebuild_editor();
             }
         });

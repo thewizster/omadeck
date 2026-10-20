@@ -122,6 +122,14 @@ The switcher above the deck picks the page you're editing; **+** adds a page, an
 
 On the deck, **Go back** returns to the page you came from, or Home. Renaming a page updates every key that opens it.
 
+### Hold keys (push-to-talk)
+
+A key can also do something when you let go of it: set **When released** in the editor. With
+[voxtype](https://voxtype.io) (Omarchy's dictation), a key that runs
+`voxtype record start` when pressed and `voxtype record stop` when released gives you
+push-to-talk: hold it, speak to your AI agent, let go. If the deck is unplugged or the service
+stops while you're holding a key, it's let go then, so nothing stays switched on.
+
 ### Command line
 
 ```text
@@ -190,6 +198,9 @@ Action types:
 | `hyprland` | `dispatch` |
 | `page` | `page` (a page `name`) |
 | `back` | |
+
+A key's `[key.on_release]` (or `[page.key.on_release]`) takes any of these except `page` and
+`back`, and runs when the key is let go.
 
 Per-key look overrides are `background`, `label_color` and `show_label`.
 

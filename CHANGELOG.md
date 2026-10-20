@@ -6,6 +6,13 @@ All notable changes to omadeck are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- Release actions: a key can do something when you let go of it as well as when you press it
+  (`[key.on_release]`, or "When released" in the app). Hold a key to dictate with voxtype and
+  let go to stop, for push-to-talk to your AI agent. A key still held when the deck is
+  unplugged or the daemon stops is let go then, so nothing gets stuck on.
+- `omadeckd press KEY` runs a key's release action straight after its press, like a tap.
+
 ### Fixed
 - A config from a newer omadeck no longer blanks the deck. A key whose action type this
   version doesn't know is drawn as usual, says it needs a newer omadeck when pressed, and is
