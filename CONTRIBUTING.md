@@ -61,6 +61,7 @@ cargo test
 ```
 
 - Keep changes focused; one feature or fix per PR.
+- Add tests the way [docs/TESTING.md](docs/TESTING.md) describes; a bug fix starts with a test that fails without it.
 - User-facing change? Add a line under **Unreleased** in `CHANGELOG.md`.
 - Hardware-specific change? Say which model you tested on.
 
