@@ -101,6 +101,9 @@ spill onto an extra "more" page.
 - Omarchy menu (`omarchy-menu`) and Keybindings (`omarchy-menu-keybindings`)
 - Terminal (`omarchy-launch-terminal`) and Browser (`omarchy-launch-browser`)
 - Night light (`omarchy-toggle-nightlight`) and workspace keys
+- Volume up and down (`omarchy audio output volume raise` / `lower`), and mute
+  (`omarchy audio output volume mute-toggle`). These go through Omarchy, so its on-screen
+  volume display shows, like the keyboard's volume keys. Tested on real hardware.
 
 If voxtype isn't installed, the preview offers `omarchy-voxtype-install`. The first-run
 layout becomes this template, so new users and "Add from template" get the same thing.
