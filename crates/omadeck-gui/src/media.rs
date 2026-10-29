@@ -51,6 +51,37 @@ pub fn store_icon(stem: &str, ext: &str, bytes: &[u8]) -> Result<String> {
     Ok(paths::portable(&dest))
 }
 
+/// Imported pictures larger than this are shrunk to it. Keys are at most 96 px, so this keeps
+/// plenty of detail while a phone photo goes from megabytes and a second of decoding to a small
+/// PNG.
+const MAX_ICON_PX: u32 = 512;
+
+/// An imported picture as it should be stored: a raster image bigger than `MAX_ICON_PX` comes
+/// back as a smaller PNG; anything else (SVGs included) comes back unchanged.
+fn shrink_if_huge(bytes: &[u8], ext: &str) -> Result<(Vec<u8>, String)> {
+    let unchanged = || Ok((bytes.to_vec(), ext.to_string()));
+    if matches!(ext, "svg" | "svgz") {
+        return unchanged();
+    }
+    // Only the header is read here; something that isn't an image is left for the caller to
+    // reject with a clearer message.
+    let reader = || image::ImageReader::new(std::io::Cursor::new(bytes)).with_guessed_format();
+    let Ok((w, h)) = reader().map_err(anyhow::Error::from).and_then(|r| Ok(r.into_dimensions()?)) else {
+        return unchanged();
+    };
+    if w.max(h) <= MAX_ICON_PX {
+        return unchanged();
+    }
+    let img = reader()?.decode().map_err(|e| match e {
+        image::ImageError::Limits(_) => anyhow::anyhow!("it's too large to import ({w}×{h})"),
+        e => e.into(),
+    })?;
+    let small = img.resize(MAX_ICON_PX, MAX_ICON_PX, image::imageops::FilterType::Lanczos3);
+    let mut out = std::io::Cursor::new(Vec::new());
+    small.write_to(&mut out, image::ImageFormat::Png)?;
+    Ok((out.into_inner(), "png".to_string()))
+}
+
 /// Copy an image the user picked into the config dir so the setup stays self-contained.
 pub fn import_icon(src: &Path) -> Result<String> {
     if src.starts_with(paths::icons_dir()) {
@@ -59,10 +90,13 @@ pub fn import_icon(src: &Path) -> Result<String> {
     let bytes = fs::read(src).with_context(|| format!("reading {}", src.display()))?;
     let ext = src.extension().and_then(|e| e.to_str()).unwrap_or("png").to_ascii_lowercase();
     let stem = src.file_stem().and_then(|s| s.to_str()).unwrap_or("icon");
-    if omadeck_core::render::load_icon(src, 16).is_none() {
+    let (stored, stored_ext) =
+        shrink_if_huge(&bytes, &ext).with_context(|| format!("couldn't import {}", src.display()))?;
+    // A shrunk picture was just decoded; anything else is checked here.
+    if stored_ext == ext && stored.len() == bytes.len() && omadeck_core::render::load_icon(src, 16).is_none() {
         bail!("{} is not an image omadeck can read", src.display());
     }
-    store_icon(stem, &ext, &bytes)
+    store_icon(stem, &stored_ext, &stored)
 }
 
 /// Resolve an application's icon to a file (via the icon theme) and import it.
@@ -264,6 +298,29 @@ fn download(agent: &ureq::Agent, url: &str, limit: u64) -> Result<Vec<u8>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn encoded(w: u32, h: u32) -> Vec<u8> {
+        let img = image::RgbaImage::from_pixel(w, h, image::Rgba([10, 120, 200, 255]));
+        let mut out = std::io::Cursor::new(Vec::new());
+        img.write_to(&mut out, image::ImageFormat::Png).unwrap();
+        out.into_inner()
+    }
+
+    #[test]
+    fn importing_a_huge_image_stores_a_small_one() {
+        let (bytes, ext) = shrink_if_huge(&encoded(1600, 1200), "jpg").unwrap();
+        let img = image::load_from_memory(&bytes).unwrap();
+        assert_eq!(ext, "png");
+        assert_eq!((img.width(), img.height()), (512, 384), "the aspect ratio is kept");
+    }
+
+    #[test]
+    fn small_images_and_svgs_are_stored_as_they_are() {
+        let small = encoded(256, 256);
+        assert_eq!(shrink_if_huge(&small, "png").unwrap(), (small, "png".to_string()));
+        let svg = b"<svg xmlns='http://www.w3.org/2000/svg' width='9000' height='9000'/>".to_vec();
+        assert_eq!(shrink_if_huge(&svg, "svg").unwrap(), (svg, "svg".to_string()));
+    }
 
     #[test]
     fn hosts() {

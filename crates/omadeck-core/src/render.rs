@@ -27,7 +27,8 @@ pub struct Renderer {
     /// icons shouldn't blank every glyph key).
     fallbacks: HashMap<char, Option<Arc<FontVec>>>,
     pub theme: Theme,
-    icons: HashMap<(PathBuf, u32), Option<RgbaImage>>,
+    /// Decoded icons, with the stamp their file had when it was read.
+    icons: HashMap<(PathBuf, u32), (Option<FileStamp>, Option<RgbaImage>)>,
 }
 
 impl Renderer {
@@ -74,9 +75,10 @@ impl Renderer {
         self.theme = Theme::load_omarchy();
     }
 
-    /// Drop cached icons (call after the config changes; files may have been replaced).
+    /// Drop cached icons whose files changed or went away (call after the config changes).
+    /// Unchanged icons stay, so a save doesn't decode every image again.
     pub fn clear_cache(&mut self) {
-        self.icons.clear();
+        self.icons.retain(|(path, _), (stamp, _)| stamp.is_some() && FileStamp::of(path) == *stamp);
     }
 
     pub fn background(&self, key: Option<&KeyConfig>, style: &Style) -> Rgb {
@@ -175,14 +177,15 @@ impl Renderer {
 
     fn icon(&mut self, path: &Path, box_px: u32) -> Option<RgbaImage> {
         let k = (path.to_path_buf(), box_px);
-        if let Some(hit) = self.icons.get(&k) {
+        if let Some((_, hit)) = self.icons.get(&k) {
             return hit.clone();
         }
+        let stamp = FileStamp::of(path);
         let loaded = load_icon(path, box_px);
         if loaded.is_none() {
             log::warn!("could not load icon {}", path.display());
         }
-        self.icons.insert(k, loaded.clone());
+        self.icons.insert(k, (stamp, loaded.clone()));
         loaded
     }
 
@@ -430,7 +433,56 @@ fn load_font_with(c: char) -> Option<FontVec> {
 
 #[cfg(test)]
 mod tests {
-    use super::glyph_char;
+    use super::*;
+
+    /// A renderer that doesn't look at the machine's fonts or Omarchy theme.
+    fn renderer() -> Renderer {
+        Renderer {
+            font: None,
+            font_pattern: None,
+            fonts_stamp: None,
+            fallbacks: HashMap::new(),
+            theme: Theme::default(),
+            icons: HashMap::new(),
+        }
+    }
+
+    fn png(path: &Path, w: u32, h: u32, rgb: [u8; 3]) {
+        RgbaImage::from_pixel(w, h, image::Rgba([rgb[0], rgb[1], rgb[2], 255])).save(path).unwrap();
+    }
+
+    fn temp_png(name: &str) -> PathBuf {
+        std::env::temp_dir().join(format!("omadeck-test-{}-{name}.png", std::process::id()))
+    }
+
+    #[test]
+    fn reload_keeps_unchanged_icons_cached() {
+        // B10: every save in the app cleared the cache, so a huge icon was decoded again each time.
+        let path = temp_png("kept");
+        png(&path, 8, 8, [200, 0, 0]);
+        let mut r = renderer();
+        assert!(r.icon(&path, 32).is_some());
+        r.clear_cache();
+        let kept = r.icons.contains_key(&(path.clone(), 32));
+        let _ = std::fs::remove_file(&path);
+        assert!(kept, "an icon whose file didn't change stays cached");
+    }
+
+    #[test]
+    fn a_changed_icon_file_is_reloaded() {
+        let path = temp_png("changed");
+        png(&path, 8, 8, [200, 0, 0]);
+        let mut r = renderer();
+        assert_eq!(r.icon(&path, 32).unwrap().get_pixel(16, 16)[0], 200);
+        png(&path, 16, 16, [0, 0, 200]);
+        r.clear_cache();
+        let after = r.icon(&path, 32).unwrap();
+        std::fs::remove_file(&path).unwrap();
+        r.clear_cache();
+        let gone = !r.icons.contains_key(&(path.clone(), 32));
+        assert_eq!(after.get_pixel(16, 16)[2], 200, "the new picture is drawn");
+        assert!(gone, "a deleted icon is dropped from the cache");
+    }
 
     #[test]
     fn glyph_forms() {
