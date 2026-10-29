@@ -124,6 +124,8 @@ On the deck, **Go back** returns to the page you came from, or Home. Renaming a 
 
 ### Hold keys (push-to-talk)
 
+*New in 0.3.0, not released yet: build from source to try it.*
+
 A key can also do something when you let go of it: set **When released** in the editor. With
 [voxtype](https://voxtype.io) (Omarchy's dictation), a key that runs
 `voxtype record start` when pressed and `voxtype record stop` when released gives you
@@ -135,7 +137,7 @@ stops while you're holding a key, it's let go then, so nothing stays switched on
 ```text
 omadeckd                        run the daemon (normally via systemd)
 omadeckd list                   show connected decks
-omadeckd press 3 [PAGE]         run key 3's action (keys count from 0)
+omadeckd press 3 [PAGE]         run key 3's action, then its release action (keys count from 0)
 omadeckd snapshot x.png [PAGE]  render the layout to an image
 ```
 
@@ -200,7 +202,7 @@ Action types:
 | `back` | |
 
 A key's `[key.on_release]` (or `[page.key.on_release]`) takes any of these except `page` and
-`back`, and runs when the key is let go.
+`back`, and runs when the key is let go (new in 0.3.0, not released yet).
 
 Per-key look overrides are `background`, `label_color` and `show_label`.
 
@@ -231,7 +233,7 @@ site/             project website: static HTML/CSS/JS with an interactive demo
 Ideas, roughly in order; [docs/ROADMAP.md](docs/ROADMAP.md) has the details. Want one sooner? Open an issue; see [CONTRIBUTING](CONTRIBUTING.md).
 
 - [x] **Pages and folders** (0.2.0)
-- [ ] **Release actions**: keys that act on release too, for push-to-talk dictation
+- [x] **Release actions**: keys that act on release too, for push-to-talk dictation (done, coming in 0.3.0)
 - [ ] **Omarchy bar widget**: deck status on the bar, one click to the app (can be turned off)
 - [ ] **Templates**: ready-made pages to add in one click, starting with Omarchy Basics (your AI agent, dictation and everyday Omarchy keys); save any page as a template and share it
 - [ ] **Toggle keys** with on/off faces (mute, night light, …) that reflect real state

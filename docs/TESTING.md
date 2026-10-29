@@ -55,9 +55,9 @@ every test has to pass there too.
 
 | Crate | What's covered by tests |
 |-------|-------------------------|
-| `omadeck-core` | Config parsing and saving, page edits and undo, backups, actions' command building, rendering helpers, the theme |
-| `omadeckd` | Page history, the action worker, the event socket (with real sockets in a temp folder) |
-| `omadeck-gui` | Media helpers; anything else that holds logic is moved out of GTK callbacks so it can be tested |
+| `omadeck-core` | Config parsing and saving (including settings from newer versions, and a byte-for-byte check against 0.2.0), page edits and undo, backups, actions' command building, running a release and waiting for it, rendering helpers, the theme |
+| `omadeckd` | Page history, release actions armed on press (`hold.rs`), the action worker, the event socket (with real sockets in a temp folder) |
+| `omadeck-gui` | Media helpers, the editor's press and release slots; anything else that holds logic is moved out of GTK callbacks so it can be tested |
 
 Hardware, USB hot-plug, the GTK interface and the Omarchy desktop are covered by the QA
 checklist.

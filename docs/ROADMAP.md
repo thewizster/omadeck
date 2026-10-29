@@ -9,12 +9,14 @@ Plans, roughly in order. Release numbers are a guide, not a promise.
 
 ## 0.3.0: hold keys and the Omarchy bar
 
-- Release actions (below).
+- **Done:** release actions (below; design in `docs/design/release-actions.md`).
+- **Done:** forward compatibility. A key with an action type this version doesn't know is
+  drawn as usual and kept as written, instead of the whole config being rejected, and unknown
+  settings survive a save. Templates need this, since one made with a newer omadeck should
+  still load in an older one. Design in `docs/design/forward-compat.md`.
 - The Omarchy bar widget (below).
-- Forward compatibility: a key with an action type this version doesn't know is skipped with
-  a warning instead of the whole config being rejected. Templates need this, since one made
-  with a newer omadeck should still load in an older one.
-- More fixes from stress testing as time allows.
+- Fixes from stress testing: B11 (log spam without the udev rule), B15 (silent app launch
+  failures), B10 (huge images) and B9 (very long labels).
 
 ## 0.4.0: templates
 
@@ -27,15 +29,22 @@ Let a key do something when it's released as well as when it's pressed:
 
 ```toml
 [[key]]
+index = 2
 label = "Talk"
-action     = { type = "app", command = "voxtype record start" }
-on_release = { type = "app", command = "voxtype record stop" }
+
+[key.action]
+type = "app"
+command = "voxtype record start"
+
+[key.on_release]
+type = "app"
+command = "voxtype record stop"
 ```
 
 This makes push-to-talk work, and hold-to-mute and similar keys too.
 
-- Start and stop must be fast. Run short commands like these directly instead of through
-  `uwsm-app`, or the first word of a dictation gets cut off.
+- Launching through `uwsm-app` adds about 20 ms, which was measured and is fast enough: the
+  first word of a dictation isn't cut off.
 - Dictation types into the focused window. A later "Talk to agent" key could focus the agent's
   window first, then start recording.
 

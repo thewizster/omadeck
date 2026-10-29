@@ -45,7 +45,8 @@ command = "voxtype record stop"
 ## Speed
 
 Releases launch the same way as presses, through `uwsm-app`, so what they start keeps
-running if the daemon restarts. Measured on the development machine (20 runs each), from
+running if the daemon restarts. The exception is shutdown (rule 2): a release then runs
+directly and is waited for. Measured on the development machine (20 runs each), from
 spawning to the command running:
 
 | Path | Delay |
@@ -64,6 +65,9 @@ stop, and 20 ms doesn't clip the first word of a dictation. No separate fast pat
 - `crates/omadeckd/src/hold.rs`: `Hold` arms a release on key-down (`press`), hands it back
   on key-up (`release`), and gives back everything still held (`drain`) when the deck goes
   away or the daemon stops.
+- At shutdown, `main.rs` runs what's still held with `action::run_and_wait`, which runs app
+  commands and scripts directly and waits up to 2 s. App and script command lines come from the
+  same helpers (`app_argv`, `script_argv`) as a normal launch.
 - In the app, `editor.rs` edits either action through a `Slot` (`Press` or `Release`), so one
   set of rows serves both. "When released" is its own group with its own ▶.
 
