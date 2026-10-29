@@ -19,6 +19,16 @@ All notable changes to omadeck are documented here. The format follows
   as it changes.
 
 ### Fixed
+- With no udev rule, "found Stream Deck but could not open it" was logged every 2 seconds,
+  about 43,000 lines a day. It's now logged once, and the app's title bar and the bar
+  widget say the deck can't be opened.
+- A Launch app key whose program isn't installed (a typo, or a missing desktop entry) did
+  nothing and said nothing. It now says the program isn't installed or isn't on your PATH.
+- A huge picture as an icon stalled the deck on every save. Pictures larger than 512 px are
+  shrunk when imported, and saving no longer makes the daemon decode unchanged icons again.
+- Pasting a very long label froze the app and stalled the deck. Labels are fitted quickly at
+  any length, and normal labels look exactly as before.
+- Restarting the service while holding a key no longer leaves its release action undone.
 - A config from a newer omadeck no longer blanks the deck. A key whose action type this
   version doesn't know is drawn as usual, says it needs a newer omadeck when pressed, and is
   kept as written. Settings this version doesn't know are no longer dropped when the app

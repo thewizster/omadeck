@@ -234,7 +234,7 @@ site/             project website: static HTML/CSS/JS with an interactive demo
 ## Troubleshooting
 
 - **"Service not running"**: `systemctl --user status omadeckd` (press <kbd>q</kbd> to leave its pager, or add `--no-pager`). Logs: `journalctl --user -u omadeckd -f`.
-- **Deck found but can't be opened**: install the udev rule (`packaging/70-omadeck.rules` → `/etc/udev/rules.d/`), then replug the deck.
+- **Deck found but can't be opened** (the app's title says "Can't open the Stream Deck"): replug the deck. If that doesn't help, install the udev rule (`packaging/70-omadeck.rules` → `/etc/udev/rules.d/`), then replug it again.
 - **Only one program can own the deck.** Quit the Elgato software or other tools such as `streamdeck-ui` first.
 
 ## Roadmap

@@ -15,8 +15,8 @@ Plans, roughly in order. Release numbers are a guide, not a promise.
   settings survive a save. Templates need this, since one made with a newer omadeck should
   still load in an older one. Design in `docs/design/forward-compat.md`.
 - **Done:** the Omarchy bar widget (below; design in `docs/design/bar-widget.md`).
-- Fixes from stress testing: B11 (log spam without the udev rule), B15 (silent app launch
-  failures), B10 (huge images) and B9 (very long labels).
+- **Done:** fixes from stress testing: B11 (log spam without the udev rule), B15 (silent app
+  launch failures), B10 (huge images) and B9 (very long labels).
 
 ## 0.4.0: templates
 
