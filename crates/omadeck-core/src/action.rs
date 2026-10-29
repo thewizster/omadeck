@@ -95,6 +95,39 @@ fn needs_shell(s: &str) -> bool {
     s.chars().any(|c| "|&;<>()$`*?[]{}~!#".contains(c))
 }
 
+/// The program an app command would start, if it isn't installed: a desktop entry missing from
+/// every `applications` folder in `data_dirs`, or a command that isn't on `path`. Commands that
+/// need a shell are left to the shell.
+fn missing_program(command: &str, path: Option<&std::ffi::OsStr>, data_dirs: &[std::path::PathBuf]) -> Option<String> {
+    let command = command.trim();
+    if is_desktop_id(command) {
+        let installed = data_dirs.iter().any(|d| d.join("applications").join(command).is_file());
+        return (!installed).then(|| command.to_string());
+    }
+    if command.is_empty() || needs_shell(command) {
+        return None;
+    }
+    let program = shell_words::split(command).ok()?.into_iter().next()?;
+    let found = if program.contains('/') {
+        paths::resolve(&program).is_file()
+    } else {
+        path.is_some_and(|p| std::env::split_paths(p).any(|d| d.join(&program).is_file()))
+    };
+    (!found).then_some(program)
+}
+
+/// Where desktop entries live: `$XDG_DATA_HOME` and `$XDG_DATA_DIRS`, with their defaults.
+fn data_dirs() -> Vec<std::path::PathBuf> {
+    let home = std::env::var_os("XDG_DATA_HOME")
+        .filter(|v| !v.is_empty())
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|| home_dir().join(".local/share"));
+    let rest = std::env::var_os("XDG_DATA_DIRS")
+        .filter(|v| !v.is_empty())
+        .unwrap_or_else(|| "/usr/local/share:/usr/share".into());
+    std::iter::once(home).chain(std::env::split_paths(&rest)).collect()
+}
+
 /// A desktop entry id, e.g. "org.gnome.Nautilus.desktop".
 fn is_desktop_id(command: &str) -> bool {
     command.ends_with(".desktop") && !command.contains(char::is_whitespace)
@@ -119,6 +152,10 @@ fn app_argv(command: &str) -> Result<Vec<String>> {
 
 fn launch_app(command: &str) -> Result<()> {
     let command = command.trim();
+    // uwsm-app always starts, so a misspelled command would otherwise fail without a word.
+    if let Some(program) = missing_program(command, std::env::var_os("PATH").as_deref(), &data_dirs()) {
+        bail!("“{program}” isn't installed, or isn't on your PATH");
+    }
     if is_desktop_id(command) {
         if has_uwsm() {
             return spawn(detached(&[command]));
@@ -355,6 +392,66 @@ mod tests {
         let res = run_and_wait(&Action::App { command: "sleep 5".into() }, Duration::from_millis(200));
         assert!(start.elapsed() < Duration::from_secs(2), "took {:?}", start.elapsed());
         assert!(res.is_err(), "a release that didn't finish is reported");
+    }
+
+    /// A fake PATH and XDG data folder, with one program and one desktop entry in them.
+    struct FakeSystem {
+        root: std::path::PathBuf,
+    }
+
+    impl FakeSystem {
+        fn new(name: &str) -> Self {
+            let root = std::env::temp_dir().join(format!("omadeck-test-{}-{name}", std::process::id()));
+            let _ = std::fs::remove_dir_all(&root);
+            std::fs::create_dir_all(root.join("bin")).unwrap();
+            std::fs::create_dir_all(root.join("share/applications")).unwrap();
+            std::fs::write(root.join("bin/foot"), "").unwrap();
+            std::fs::write(root.join("share/applications/org.gnome.Nautilus.desktop"), "").unwrap();
+            Self { root }
+        }
+
+        fn missing(&self, command: &str) -> Option<String> {
+            let path = std::ffi::OsString::from(self.root.join("bin"));
+            missing_program(command, Some(&path), &[self.root.join("share")])
+        }
+    }
+
+    impl Drop for FakeSystem {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.root);
+        }
+    }
+
+    #[test]
+    fn missing_commands_are_reported() {
+        let sys = FakeSystem::new("missing");
+        assert_eq!(sys.missing("notarealapp"), Some("notarealapp".into()));
+        assert_eq!(sys.missing("notarealapp --flag"), Some("notarealapp".into()));
+        assert_eq!(sys.missing("/no/such/program"), Some("/no/such/program".into()));
+        assert_eq!(sys.missing("foot"), None);
+        assert_eq!(sys.missing("foot -e btop"), None, "only the program itself has to exist");
+    }
+
+    #[test]
+    fn desktop_ids_are_found_in_xdg_dirs() {
+        let sys = FakeSystem::new("desktop");
+        assert_eq!(sys.missing("org.gnome.Nautilus.desktop"), None);
+        assert_eq!(sys.missing("firefoxx.desktop"), Some("firefoxx.desktop".into()));
+    }
+
+    #[test]
+    fn absolute_paths_and_shell_commands_are_not_second_guessed() {
+        let sys = FakeSystem::new("shell");
+        assert_eq!(sys.missing(&sys.root.join("bin/foot").display().to_string()), None);
+        assert_eq!(sys.missing("notarealapp | cat"), None, "the shell reports its own errors");
+        assert_eq!(sys.missing("FOO=1 $HOME/bin/x"), None);
+    }
+
+    #[test]
+    fn launching_a_missing_app_says_so() {
+        // Before 0.3.0 this went through uwsm-app, which always starts, so nothing was shown.
+        let err = run(&Action::App { command: "omadeck-no-such-app-xyz".into() }).unwrap_err().to_string();
+        assert!(err.contains("omadeck-no-such-app-xyz") && err.contains("isn't installed"), "{err}");
     }
 
     #[test]
