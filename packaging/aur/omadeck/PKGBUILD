@@ -1,15 +1,17 @@
 # Maintainer: Raymond Brady (github.com/thewizster)
 pkgname=omadeck
-pkgver=0.2.0
+pkgver=0.3.0
 pkgrel=1
 pkgdesc="Elgato Stream Deck for Omarchy: launch apps, run scripts, play sounds and open websites"
 arch=('x86_64' 'aarch64')
 url="https://github.com/thewizster/omadeck"
 license=('MIT')
-depends=('gtk4' 'libadwaita' 'systemd-libs' 'pipewire' 'fontconfig')
+# fontconfig: key labels are rendered with fonts found through fc-match.
+depends=('gtk4' 'libadwaita' 'systemd-libs' 'fontconfig')
 makedepends=('cargo' 'git')
 optdepends=('uwsm: launch apps in their own systemd scope (Omarchy default)'
-            'hyprland: Hyprland dispatcher actions')
+            'hyprland: Hyprland dispatcher actions'
+            'pipewire-audio: play sound keys with pw-play (falls back to paplay or aplay)')
 # !lto: makepkg's -flto would turn hidapi's bundled C code into GCC LTO bytecode rust-lld can't link.
 options=('!debug' '!lto')
 install=omadeck.install

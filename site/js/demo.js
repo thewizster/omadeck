@@ -532,7 +532,7 @@ try {
   /* storage unavailable */
 }
 setTheme(saved && THEMES[saved] ? saved : "tokyo-night", true);
-log("omadeckd 0.2.0 ready; config ~/.config/omadeck/config.toml");
+log("omadeckd 0.3.0 ready; config ~/.config/omadeck/config.toml");
 log(`theme: ${state.theme}`);
 log("connected Stream Deck (V2) (serial CL24K1A01337, firmware 1.03.000)");
 

@@ -241,7 +241,7 @@
       <article class="card">
         <svg class="card-icon"><use href="#i-terminal-line"/></svg>
         <h3>Scriptable</h3>
-        <p><code>omadeckd press 3</code> fires a key from any script or Hyprland binding. <code>list</code> and <code>snapshot</code> round out the CLI.</p>
+        <p><code>omadeckd press 3</code> fires a key from any script or Hyprland binding. <code>list</code>, <code>snapshot</code> and <code>status</code> (Waybar-style JSON) round out the CLI.</p>
       </article>
       <article class="card">
         <svg class="card-icon"><use href="#i-box"/></svg>
@@ -296,7 +296,8 @@
         <li>▶ to test any action from the editor</li>
         <li>Pages and folders, and the deck follows the page you're editing</li>
         <li>Undo a deleted page or a cleared key</li>
-        <li>Hold keys: one action when pressed, another when let go, for push-to-talk to your AI agent <span class="small muted">(coming in 0.3.0)</span></li>
+        <li>Hold keys: one action when pressed, another when let go, for push-to-talk to your AI agent</li>
+        <li>An optional omadeck icon on your Omarchy bar shows the deck's status and opens the app</li>
         <li>Starts the daemon for you if it isn't running</li>
       </ul>
     </div>
@@ -354,12 +355,12 @@
     <ol class="steps">
       <li>
         <h3><span>1</span> Download the release</h3>
-        <div class="cmd"><code>curl -L https://github.com/thewizster/omadeck/releases/download/v0.2.0/omadeck-0.2.0-x86_64-linux.tar.gz | tar xz</code><button class="copy" aria-label="Copy command"><svg><use href="#i-copy"/></svg></button></div>
+        <div class="cmd"><code>curl -L https://github.com/thewizster/omadeck/releases/download/v0.3.0/omadeck-0.3.0-x86_64-linux.tar.gz | tar xz</code><button class="copy" aria-label="Copy command"><svg><use href="#i-copy"/></svg></button></div>
         <p class="small muted">Prebuilt binaries, no Rust needed. Checksums are on the <a href="https://github.com/thewizster/omadeck/releases/latest">release page</a>. Coming soon: <code>omarchy pkg add omadeck-bin</code>.</p>
       </li>
       <li>
         <h3><span>2</span> Run the installer</h3>
-        <div class="cmd"><code>cd omadeck-0.2.0-x86_64-linux &amp;&amp; scripts/install.sh</code><button class="copy" aria-label="Copy command"><svg><use href="#i-copy"/></svg></button></div>
+        <div class="cmd"><code>cd omadeck-0.3.0-x86_64-linux &amp;&amp; scripts/install.sh</code><button class="copy" aria-label="Copy command"><svg><use href="#i-copy"/></svg></button></div>
         <p class="small muted">Installs to <code>~/.local</code> and starts a tiny user service with your desktop. It offers to add the udev rule; if the deck isn't detected straight away, replug it once.</p>
       </li>
       <li>

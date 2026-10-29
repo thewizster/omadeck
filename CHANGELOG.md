@@ -6,6 +6,8 @@ All notable changes to omadeck are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-29
+
 ### Added
 - Release actions: a key can do something when you let go of it as well as when you press it
   (`[key.on_release]`, or "When released" in the app). Hold a key to dictate with voxtype and
@@ -17,6 +19,11 @@ All notable changes to omadeck are documented here. The format follows
   to add it, and "Show in Omarchy bar" in its settings turns it on and off.
 - `omadeckd status` prints the deck's state as Waybar-style JSON; `--follow` keeps printing
   as it changes.
+
+### Changed
+- omadeck's AUR packages no longer require `pipewire`. Sound keys play with `pw-play` from
+  `pipewire-audio` (now an optional dependency, already installed on Omarchy), and fall back
+  to `paplay` or `aplay`.
 
 ### Fixed
 - With no udev rule, "found Stream Deck but could not open it" was logged every 2 seconds,
@@ -93,6 +100,7 @@ The first public release.
 - CLI: `omadeckd list`, `omadeckd press N`, `omadeckd snapshot FILE.png`.
 - Installer, udev rule, desktop entry, AUR packages (`omadeck`, `omadeck-bin`) and a project website.
 
-[Unreleased]: https://github.com/thewizster/omadeck/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/thewizster/omadeck/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/thewizster/omadeck/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/thewizster/omadeck/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/thewizster/omadeck/releases/tag/v0.1.0

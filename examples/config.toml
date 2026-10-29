@@ -61,6 +61,17 @@ glyph = "f024b"              # folder symbol
 type = "page"
 page = "Media"               # the name of a [[page]] below
 
+[[key]]
+index = 6
+label = "Talk"
+glyph = "f036c"              # microphone
+[key.action]                 # hold to dictate with voxtype…
+type = "app"
+command = "voxtype record start"
+[key.on_release]             # …and let go to stop
+type = "app"
+command = "voxtype record stop"
+
 [[page]]
 name = "Media"
 

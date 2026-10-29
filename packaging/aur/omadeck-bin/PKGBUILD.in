@@ -7,9 +7,11 @@ pkgdesc="Elgato Stream Deck for Omarchy: launch apps, run scripts, play sounds a
 arch=('x86_64')
 url="https://github.com/thewizster/omadeck"
 license=('MIT')
-depends=('gtk4' 'libadwaita' 'systemd-libs' 'pipewire' 'fontconfig')
+# fontconfig: key labels are rendered with fonts found through fc-match.
+depends=('gtk4' 'libadwaita' 'systemd-libs' 'fontconfig')
 optdepends=('uwsm: launch apps in their own systemd scope (Omarchy default)'
-            'hyprland: Hyprland dispatcher actions')
+            'hyprland: Hyprland dispatcher actions'
+            'pipewire-audio: play sound keys with pw-play (falls back to paplay or aplay)')
 provides=('omadeck')
 conflicts=('omadeck')
 options=('!debug')  # binaries are already stripped (release profile)

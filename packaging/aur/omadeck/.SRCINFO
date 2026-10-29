@@ -1,6 +1,6 @@
 pkgbase = omadeck
 	pkgdesc = Elgato Stream Deck for Omarchy: launch apps, run scripts, play sounds and open websites
-	pkgver = 0.2.0
+	pkgver = 0.3.0
 	pkgrel = 1
 	url = https://github.com/thewizster/omadeck
 	install = omadeck.install
@@ -12,13 +12,13 @@ pkgbase = omadeck
 	depends = gtk4
 	depends = libadwaita
 	depends = systemd-libs
-	depends = pipewire
 	depends = fontconfig
 	optdepends = uwsm: launch apps in their own systemd scope (Omarchy default)
 	optdepends = hyprland: Hyprland dispatcher actions
+	optdepends = pipewire-audio: play sound keys with pw-play (falls back to paplay or aplay)
 	options = !debug
 	options = !lto
-	source = git+https://github.com/thewizster/omadeck.git#tag=v0.2.0
+	source = git+https://github.com/thewizster/omadeck.git#tag=v0.3.0
 	sha256sums = SKIP
 
 pkgname = omadeck

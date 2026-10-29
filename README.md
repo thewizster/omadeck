@@ -45,6 +45,8 @@ Written in Rust: a tiny background daemon drives the hardware, and a GTK4/libadw
 - **Live editing.** Changes land on the hardware as you type, and the deck shows whichever page you're editing. Drag keys to rearrange them. Press a physical key to jump to it in the editor.
 - **Robust.** Reconnects after unplug/replug, and a typo in a hand-edited config keeps the last good layout on the deck. Apps opened from the deck keep running when the daemon restarts or upgrades. Uses about 9 MB of RAM and 0% CPU at idle.
 - **Undo and backups.** A deleted page or cleared key can be undone, and the app keeps backups of your config.
+- **Hold keys.** A key can do one thing when pressed and another when let go: push-to-talk to your AI agent with voxtype.
+- **On your Omarchy bar.** An optional icon shows whether the deck is connected and which page it's on, and opens the app.
 - **Portable.** Everything lives in `~/.config/omadeck/`, and imported icons are copied into it, so you can copy that folder to another machine.
 
 <p align="center">
@@ -56,10 +58,10 @@ Written in Rust: a tiny background daemon drives the hardware, and a GTK4/libadw
 ### Prebuilt release (recommended, no Rust needed)
 
 ```bash
-curl -LO https://github.com/thewizster/omadeck/releases/download/v0.2.0/omadeck-0.2.0-x86_64-linux.tar.gz
-curl -LO https://github.com/thewizster/omadeck/releases/download/v0.2.0/SHA256SUMS
+curl -LO https://github.com/thewizster/omadeck/releases/download/v0.3.0/omadeck-0.3.0-x86_64-linux.tar.gz
+curl -LO https://github.com/thewizster/omadeck/releases/download/v0.3.0/SHA256SUMS
 sha256sum -c SHA256SUMS
-tar xzf omadeck-0.2.0-x86_64-linux.tar.gz && cd omadeck-0.2.0-x86_64-linux
+tar xzf omadeck-0.3.0-x86_64-linux.tar.gz && cd omadeck-0.3.0-x86_64-linux
 scripts/install.sh
 ```
 
@@ -124,8 +126,6 @@ On the deck, **Go back** returns to the page you came from, or Home. Renaming a 
 
 ### Hold keys (push-to-talk)
 
-*New in 0.3.0, not released yet: build from source to try it.*
-
 A key can also do something when you let go of it: set **When released** in the editor. With
 [voxtype](https://voxtype.io) (Omarchy's dictation), a key that runs
 `voxtype record start` when pressed and `voxtype record stop` when released gives you
@@ -133,8 +133,6 @@ push-to-talk: hold it, speak to your AI agent, let go. If the deck is unplugged 
 stops while you're holding a key, it's let go then, so nothing stays switched on.
 
 ### Omarchy bar
-
-*New in 0.3.0, not released yet.*
 
 On Omarchy, the app offers once to add an omadeck icon to the bar. It shows whether your deck
 is connected and which page it's on, and opens omadeck when clicked. Turn it on or off any time
@@ -211,7 +209,7 @@ Action types:
 | `back` | |
 
 A key's `[key.on_release]` (or `[page.key.on_release]`) takes any of these except `page` and
-`back`, and runs when the key is let go (new in 0.3.0, not released yet).
+`back`, and runs when the key is let go.
 
 Per-key look overrides are `background`, `label_color` and `show_label`.
 
@@ -242,8 +240,8 @@ site/             project website: static HTML/CSS/JS with an interactive demo
 Ideas, roughly in order; [docs/ROADMAP.md](docs/ROADMAP.md) has the details. Want one sooner? Open an issue; see [CONTRIBUTING](CONTRIBUTING.md).
 
 - [x] **Pages and folders** (0.2.0)
-- [x] **Release actions**: keys that act on release too, for push-to-talk dictation (done, coming in 0.3.0)
-- [x] **Omarchy bar widget**: deck status on the bar, one click to the app (done, coming in 0.3.0)
+- [x] **Release actions**: keys that act on release too, for push-to-talk dictation (0.3.0)
+- [x] **Omarchy bar widget**: deck status on the bar, one click to the app (0.3.0)
 - [ ] **Templates**: ready-made pages to add in one click, starting with Omarchy Basics (your AI agent, dictation and everyday Omarchy keys); save any page as a template and share it
 - [ ] **Toggle keys** with on/off faces (mute, night light, …) that reflect real state
 - [ ] **Multi-actions**: run several actions from one key, with optional delays

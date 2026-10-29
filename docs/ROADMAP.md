@@ -6,17 +6,8 @@ Plans, roughly in order. Release numbers are a guide, not a promise.
 
 - **0.2.0:** pages and folders, undo and backups, and the fixes from stress testing (see
   `CHANGELOG.md`).
-
-## 0.3.0: hold keys and the Omarchy bar
-
-- **Done:** release actions (below; design in `docs/design/release-actions.md`).
-- **Done:** forward compatibility. A key with an action type this version doesn't know is
-  drawn as usual and kept as written, instead of the whole config being rejected, and unknown
-  settings survive a save. Templates need this, since one made with a newer omadeck should
-  still load in an older one. Design in `docs/design/forward-compat.md`.
-- **Done:** the Omarchy bar widget (below; design in `docs/design/bar-widget.md`).
-- **Done:** fixes from stress testing: B11 (log spam without the udev rule), B15 (silent app
-  launch failures), B10 (huge images) and B9 (very long labels).
+- **0.3.0:** hold keys (release actions), the Omarchy bar widget, configs from newer versions,
+  and four more stress-test fixes (B9, B10, B11, B15).
 
 ## 0.4.0: templates
 
