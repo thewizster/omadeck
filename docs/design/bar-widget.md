@@ -44,7 +44,9 @@ is connected and which page it's on, and opens the app in one click.
   shell's PATH.
 - **The app** (`crates/omadeck-gui/src/bar.rs`): `install` writes the files (only when they
   differ, since Omarchy reloads a plugin when its files are saved); `enable` runs
-  `omarchy-shell shell rescanPlugins` then `omarchy plugin enable dev.omadeck`; `disable` and
+  `omarchy-shell shell rescanPlugins` then `omarchy plugin enable dev.omadeck`, trying again
+  every 250 ms (up to 5 s) while Omarchy says the plugin is "not known": the rescan finishes in
+  the background, and QA (W1) found the first Add failing 87 ms after the files were written; `disable` and
   `enabled` use `omarchy plugin disable` and `omarchy plugin list --json`. They take the
   command runner as a parameter, so tests check the commands without running them.
 
@@ -59,6 +61,8 @@ is connected and which page it's on, and opens the app in one click.
 | `enable_and_disable_run_the_right_commands` | `bar.rs` | 2 |
 | `enabled_reads_omarchy_plugin_list` (fixture copied from real output) | `bar.rs` | 2 |
 | `a_failed_command_is_reported` | `bar.rs` | 2 |
+| `enabling_waits_for_omarchy_to_finish_rescanning` | `bar.rs` | 1 |
+| `enabling_gives_up_on_a_plugin_omarchy_never_finds` | `bar.rs` | 1 |
 | `install_writes_the_manifest_and_widget_with_the_daemon_path` | `bar.rs` | 6 |
 | `install_leaves_unchanged_files_alone` | `bar.rs` | 5 |
 | `the_bundled_manifest_is_valid_json_with_the_required_fields` | `bar.rs` | 6 |

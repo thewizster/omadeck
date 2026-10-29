@@ -4,6 +4,7 @@
 
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::time::Duration;
 
 use anyhow::{Context, Result, bail};
 use omadeck_core::paths;
@@ -76,9 +77,23 @@ pub fn install(dir: &Path, omadeckd: &Path) -> Result<bool> {
 
 /// Put the widget on the bar: Omarchy finds the new plugin, then turns it on.
 pub fn enable(run: Runner) -> Result<()> {
+    enable_with(run, Duration::from_millis(250))
+}
+
+/// Omarchy rescans its plugins in the background, so a plugin written a moment ago can still be
+/// "not known" when it's turned on. Try again every `retry`, for 20 tries.
+fn enable_with(run: Runner, retry: Duration) -> Result<()> {
     run(&["omarchy-shell", "shell", "rescanPlugins"])?;
-    run(&["omarchy", "plugin", "enable", ID])?;
-    Ok(())
+    let mut tries = 0;
+    loop {
+        match run(&["omarchy", "plugin", "enable", ID]) {
+            Err(e) if e.to_string().contains("not known") && tries < 20 => {
+                tries += 1;
+                std::thread::sleep(retry);
+            }
+            other => return other.map(|_| ()),
+        }
+    }
 }
 
 /// Take the widget off the bar. Its files stay, so turning it back on is instant.
@@ -176,6 +191,39 @@ mod tests {
                 "omarchy plugin disable dev.omadeck"
             ]
         );
+    }
+
+    /// A fake Omarchy whose rescan finishes in the background: the first `slow` enables are
+    /// refused with the message `omarchy plugin enable` prints for an unknown plugin.
+    fn rescanning_omarchy(slow: usize, calls: &RefCell<Vec<String>>) -> impl Fn(&[&str]) -> Result<String> + '_ {
+        move |argv: &[&str]| -> Result<String> {
+            calls.borrow_mut().push(argv.join(" "));
+            let enables = calls.borrow().iter().filter(|c| c.ends_with("enable dev.omadeck")).count();
+            if argv[..3] == ["omarchy", "plugin", "enable"] && enables <= slow {
+                bail!(
+                    "omarchy-plugin-enable: plugin 'dev.omadeck' is not known; run: omarchy-shell shell rescanPlugins"
+                );
+            }
+            Ok("ok".into())
+        }
+    }
+
+    #[test]
+    fn enabling_waits_for_omarchy_to_finish_rescanning() {
+        // QA (W1): the first Add failed, because Omarchy's rescan hadn't finished when the
+        // plugin was turned on 87 ms later.
+        let calls = RefCell::new(Vec::new());
+        enable_with(&rescanning_omarchy(2, &calls), Duration::from_millis(1)).unwrap();
+        let enables = calls.borrow().iter().filter(|c| c.ends_with("enable dev.omadeck")).count();
+        assert_eq!(enables, 3, "tried again until Omarchy knew the plugin");
+    }
+
+    #[test]
+    fn enabling_gives_up_on_a_plugin_omarchy_never_finds() {
+        let calls = RefCell::new(Vec::new());
+        let err = enable_with(&rescanning_omarchy(usize::MAX, &calls), Duration::from_millis(1)).unwrap_err();
+        assert!(err.to_string().contains("not known"), "{err}");
+        assert!(calls.borrow().len() < 100, "it stops trying");
     }
 
     #[test]
