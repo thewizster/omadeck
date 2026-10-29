@@ -29,6 +29,8 @@ const READ_TIMEOUT: Duration = Duration::from_millis(100);
 const RELOAD_DEBOUNCE: Duration = Duration::from_millis(150);
 /// How often to double-check the config by stat, for changes inotify can't see.
 const STAMP_INTERVAL: Duration = Duration::from_secs(1);
+/// How long a key's release action gets to finish when the daemon stops.
+const RELEASE_AT_SHUTDOWN: Duration = Duration::from_secs(2);
 
 struct Deck {
     dev: Arc<StreamDeck>,
@@ -316,10 +318,11 @@ fn run() -> Result<()> {
     }
 
     log::info!("shutting down");
-    // Run these here, not on the worker: the process is about to exit.
+    // Wait for these to finish: systemd kills whatever is still in the service once we exit,
+    // and a launch takes a few milliseconds to leave it.
     for (i, a) in hold.drain() {
         log::info!("key {i} was held at shutdown; releasing: {}", a.summary());
-        if let Err(e) = action::run(&a) {
+        if let Err(e) = action::run_and_wait(&a, RELEASE_AT_SHUTDOWN) {
             log::warn!("key {i}: {e:#}");
         }
     }

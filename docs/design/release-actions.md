@@ -27,7 +27,11 @@ command = "voxtype record stop"
 1. **The release runs for the key that was pressed.** It's captured when the key goes down, so
    a page change or a config reload while the key is held can't swap in another key's release.
 2. **Letting go is guaranteed.** If the deck is unplugged or the daemon stops while a key is
-   held, its release runs then, so dictation can't get stuck recording.
+   held, its release runs then, so dictation can't get stuck recording. When the daemon stops,
+   it waits (up to 2 s) for the release to finish before exiting: systemd kills everything
+   still in the service once the daemon exits, and a launch through `uwsm-app` takes a few
+   milliseconds to leave it. (Found in QA, R5: the stop command was started 2 ms before
+   systemd stopped the service, and never ran.)
 3. **A missed key-up** (a second press with no release in between) runs the first release
    before the new press.
 4. **A release can't change pages.** The app doesn't offer Open page or Back for it, and the
@@ -69,6 +73,8 @@ stop, and 20 ms doesn't clip the first word of a dictation. No separate fast pat
 |------|-------|------|
 | `release_runs_the_action_armed_at_press_whatever_the_key_shows_now` | `hold.rs` | 1 |
 | `unplugging_releases_every_held_key` | `hold.rs` | 2 |
+| `a_release_at_shutdown_has_finished_when_run_and_wait_returns` | `action.rs` | 2 |
+| `a_stuck_release_cant_hold_up_shutdown` | `action.rs` | 2 |
 | `a_missed_key_up_releases_before_the_next_press` | `hold.rs` | 3 |
 | `navigation_is_refused_as_a_release_action` | `hold.rs` | 4 |
 | `keys_without_on_release_arm_nothing` | `hold.rs` | 6 |

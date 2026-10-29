@@ -26,6 +26,26 @@ pub fn run(action: &Action) -> Result<()> {
     }
 }
 
+/// Run an action and wait for it to finish, for when the daemon is about to exit. A launch
+/// through `run` is still inside omadeckd's service for its first few milliseconds, and
+/// systemd kills everything left in the service when the daemon exits. So app commands and
+/// scripts run directly here and are waited for, up to `limit`; anything else goes through `run`.
+pub fn run_and_wait(action: &Action, limit: Duration) -> Result<()> {
+    let (argv, dir) = match action {
+        Action::App { command } if !is_desktop_id(command.trim()) => (app_argv(command)?, home_dir()),
+        Action::Script { path, terminal: false } => script_argv(path)?,
+        other => return run(other),
+    };
+    let mut c = Command::new(&argv[0]);
+    c.args(&argv[1..]).current_dir(dir);
+    log::info!("exec {c:?} (waiting for it)");
+    let out = output_within(c, limit)?;
+    if !out.status.success() {
+        bail!("{} exited with {}", argv[0], out.status);
+    }
+    Ok(())
+}
+
 fn which(bin: &str) -> bool {
     std::env::var_os("PATH").map(|p| std::env::split_paths(&p).any(|d| d.join(bin).is_file())).unwrap_or(false)
 }
@@ -75,29 +95,44 @@ fn needs_shell(s: &str) -> bool {
     s.chars().any(|c| "|&;<>()$`*?[]{}~!#".contains(c))
 }
 
-fn launch_app(command: &str) -> Result<()> {
+/// A desktop entry id, e.g. "org.gnome.Nautilus.desktop".
+fn is_desktop_id(command: &str) -> bool {
+    command.ends_with(".desktop") && !command.contains(char::is_whitespace)
+}
+
+fn home_dir() -> std::path::PathBuf {
+    std::env::var_os("HOME").unwrap_or_else(|| "/".into()).into()
+}
+
+/// The command line for an app action that isn't a desktop entry.
+fn app_argv(command: &str) -> Result<Vec<String>> {
     let command = command.trim();
     if command.is_empty() {
         bail!("no application set");
     }
-    // Desktop entry id, e.g. "org.gnome.Nautilus.desktop".
-    if command.ends_with(".desktop") && !command.contains(char::is_whitespace) {
+    Ok(if needs_shell(command) {
+        vec!["sh".into(), "-c".into(), command.into()]
+    } else {
+        shell_words::split(command).context("could not parse command")?
+    })
+}
+
+fn launch_app(command: &str) -> Result<()> {
+    let command = command.trim();
+    if is_desktop_id(command) {
         if has_uwsm() {
             return spawn(detached(&[command]));
         }
         return spawn(detached(&["gtk-launch", command.trim_end_matches(".desktop")]));
     }
-    let argv: Vec<String> = if needs_shell(command) {
-        vec!["sh".into(), "-c".into(), command.into()]
-    } else {
-        shell_words::split(command).context("could not parse command")?
-    };
-    let mut c = detached(&argv);
-    c.current_dir(std::env::var_os("HOME").unwrap_or_else(|| "/".into()));
+    let mut c = detached(&app_argv(command)?);
+    c.current_dir(home_dir());
     spawn(c)
 }
 
-fn run_script(path: &str, terminal: bool) -> Result<()> {
+/// The command line for a script (run with `sh` unless it's executable), and the folder to run
+/// it in.
+fn script_argv(path: &str) -> Result<(Vec<String>, std::path::PathBuf)> {
     let p = paths::resolve(path.trim());
     if !p.exists() {
         bail!("script not found: {}", p.display());
@@ -108,15 +143,18 @@ fn run_script(path: &str, terminal: bool) -> Result<()> {
         argv.push("sh".into());
     }
     argv.push(p.to_string_lossy().into_owned());
+    let dir = p.parent().map(Path::to_path_buf).unwrap_or_else(home_dir);
+    Ok((argv, dir))
+}
 
+fn run_script(path: &str, terminal: bool) -> Result<()> {
+    let (mut argv, dir) = script_argv(path)?;
     if terminal {
         let term: &[&str] = if which("xdg-terminal-exec") { &["xdg-terminal-exec"] } else { &["alacritty", "-e"] };
         argv.splice(0..0, term.iter().map(|s| s.to_string()));
     }
     let mut c = detached(&argv);
-    if let Some(dir) = p.parent() {
-        c.current_dir(dir);
-    }
+    c.current_dir(dir);
     spawn(c)
 }
 
@@ -281,6 +319,42 @@ mod tests {
         let act = Action::Unknown { kind: "obs_scene".into(), raw: toml::Table::new() };
         let err = run(&act).unwrap_err().to_string();
         assert!(err.contains("newer omadeck") && err.contains("obs_scene"), "{err}");
+    }
+
+    fn marker(name: &str) -> std::path::PathBuf {
+        let p = std::env::temp_dir().join(format!("omadeck-test-{}-{name}", std::process::id()));
+        let _ = std::fs::remove_file(&p);
+        p
+    }
+
+    #[test]
+    fn a_release_at_shutdown_has_finished_when_run_and_wait_returns() {
+        // systemd kills whatever is still in the service when omadeckd exits, so a release
+        // started on the way out has to be done before we let go.
+        let done = marker("released");
+        let act = Action::App { command: format!("sh -c 'sleep 0.2; touch {}'", done.display()) };
+        run_and_wait(&act, Duration::from_secs(5)).unwrap();
+        let finished = done.exists();
+        let _ = std::fs::remove_file(&done);
+        assert!(finished, "returned before the release ran");
+
+        let script = marker("script.sh");
+        let touched = marker("from-script");
+        std::fs::write(&script, format!("sleep 0.2; touch {}\n", touched.display())).unwrap();
+        run_and_wait(&Action::Script { path: script.display().to_string(), terminal: false }, Duration::from_secs(5))
+            .unwrap();
+        let finished = touched.exists();
+        let _ = std::fs::remove_file(&script);
+        let _ = std::fs::remove_file(&touched);
+        assert!(finished, "returned before the script ran");
+    }
+
+    #[test]
+    fn a_stuck_release_cant_hold_up_shutdown() {
+        let start = Instant::now();
+        let res = run_and_wait(&Action::App { command: "sleep 5".into() }, Duration::from_millis(200));
+        assert!(start.elapsed() < Duration::from_secs(2), "took {:?}", start.elapsed());
+        assert!(res.is_err(), "a release that didn't finish is reported");
     }
 
     #[test]
