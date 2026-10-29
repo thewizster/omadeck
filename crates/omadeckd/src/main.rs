@@ -4,6 +4,7 @@
 mod hold;
 mod hub;
 mod nav;
+mod status;
 mod worker;
 
 use std::path::Path;
@@ -93,13 +94,31 @@ fn main() {
             println!("wrote {out}");
             return;
         }
+        Some("status") => {
+            let follow = args.next().as_deref() == Some("--follow");
+            let socket = match paths::socket_path() {
+                Ok(s) => s,
+                Err(e) => {
+                    eprintln!("{e:#}");
+                    std::process::exit(1);
+                }
+            };
+            if follow {
+                use std::io::Write;
+                let mut out = std::io::stdout();
+                status::follow(&socket, SCAN_INTERVAL, |line| writeln!(out, "{line}").is_ok());
+            } else {
+                println!("{}", status::once(&socket).to_line());
+            }
+            return;
+        }
         Some("-V" | "--version") => {
             println!("omadeckd {}", env!("CARGO_PKG_VERSION"));
             return;
         }
         Some(_) => {
             eprintln!(
-                "usage: omadeckd [run | list | press KEY [PAGE] | snapshot FILE.png [PAGE] | --version]\n\nRuns the omadeck Stream Deck daemon."
+                "usage: omadeckd [run | list | press KEY [PAGE] | snapshot FILE.png [PAGE] | status [--follow] | --version]\n\nRuns the omadeck Stream Deck daemon."
             );
             std::process::exit(2);
         }

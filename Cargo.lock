@@ -1150,6 +1150,7 @@ dependencies = [
  "libadwaita",
  "log",
  "omadeck-core",
+ "serde_json",
  "ureq",
 ]
 
@@ -1163,6 +1164,7 @@ dependencies = [
  "log",
  "notify",
  "omadeck-core",
+ "serde_json",
  "signal-hook",
 ]
 

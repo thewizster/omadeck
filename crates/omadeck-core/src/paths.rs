@@ -19,6 +19,16 @@ pub fn config_dir() -> PathBuf {
     xdg("XDG_CONFIG_HOME", ".config").join("omadeck")
 }
 
+/// `~/.local/state/omadeck`: things the app remembers that aren't settings.
+pub fn state_dir() -> PathBuf {
+    xdg("XDG_STATE_HOME", ".local/state").join("omadeck")
+}
+
+/// `~/.config/omarchy`: present when the Omarchy shell is set up for this user.
+pub fn omarchy_config_dir() -> PathBuf {
+    xdg("XDG_CONFIG_HOME", ".config").join("omarchy")
+}
+
 /// `~/.config/omadeck/config.toml`
 pub fn config_file() -> PathBuf {
     config_dir().join("config.toml")

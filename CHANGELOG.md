@@ -12,6 +12,11 @@ All notable changes to omadeck are documented here. The format follows
   let go to stop, for push-to-talk to your AI agent. A key still held when the deck is
   unplugged or the daemon stops is let go then, so nothing gets stuck on.
 - `omadeckd press KEY` runs a key's release action straight after its press, like a tap.
+- An omadeck icon for the Omarchy bar: it shows whether your Stream Deck is connected and
+  which page it's on, and opens omadeck when clicked. The app asks once, on first run, whether
+  to add it, and "Show in Omarchy bar" in its settings turns it on and off.
+- `omadeckd status` prints the deck's state as Waybar-style JSON; `--follow` keeps printing
+  as it changes.
 
 ### Fixed
 - A config from a newer omadeck no longer blanks the deck. A key whose action type this

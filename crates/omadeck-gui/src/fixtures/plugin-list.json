@@ -1,0 +1,5 @@
+[
+  {"id":"omarchy.active-window","name":"Active window","kinds":["bar-widget"],"enabled":false,"active":false,"canDisable":true,"firstParty":true,"clonedFrom":""},
+  {"id":"omarchy.audio","name":"Audio","kinds":["bar-widget"],"enabled":true,"active":false,"canDisable":true,"firstParty":true,"clonedFrom":""},
+  {"id":"dev.omadeck","name":"omadeck","kinds":["bar-widget"],"enabled":true,"active":false,"canDisable":true,"firstParty":false,"clonedFrom":""}
+]

@@ -14,7 +14,7 @@ Plans, roughly in order. Release numbers are a guide, not a promise.
   drawn as usual and kept as written, instead of the whole config being rejected, and unknown
   settings survive a save. Templates need this, since one made with a newer omadeck should
   still load in an older one. Design in `docs/design/forward-compat.md`.
-- The Omarchy bar widget (below).
+- **Done:** the Omarchy bar widget (below; design in `docs/design/bar-widget.md`).
 - Fixes from stress testing: B11 (log spam without the udev rule), B15 (silent app launch
   failures), B10 (huge images) and B9 (very long labels).
 
@@ -50,20 +50,11 @@ This makes push-to-talk work, and hold-to-mute and similar keys too.
 
 ## Omarchy bar widget
 
-An omadeck icon on the Omarchy bar, on by default. Its tooltip says whether the deck is
-connected and which page it shows, and clicking it opens the app.
-
-- It's an Omarchy shell plugin (`manifest.json` plus a small QML widget), the same kind as
-  Omarchy's own Dropbox and Tailscale widgets, so it follows the theme.
-- The plugin files are built into the `omadeck` app. On first run, when the Omarchy shell is
-  present, the app writes them to `~/.config/omarchy/plugins/omadeck/` and enables the widget
-  with `omarchy plugin enable`. The release tarball and the packages don't change.
-- Turn it off with "Show in Omarchy bar" in the app's settings, or with
-  `omarchy plugin disable omadeck`. The app remembers the choice and never re-enables it.
-- `scripts/uninstall.sh` removes the plugin.
-- Omarchy installs third-party plugins disabled by default, so consider asking once on first
-  run ("Add omadeck to your bar?") rather than enabling it silently.
-- Live status may need a small `omadeckd status` command for the widget to poll.
+Done for 0.3.0; see `docs/design/bar-widget.md`. An omadeck icon on the Omarchy bar shows
+whether the deck is connected and which page it's on, and opens the app when clicked. The app
+asks once on first run whether to add it, and a settings switch turns it on and off. It's an
+Omarchy shell plugin that runs `omadeckd status --follow`; its files are built into the app,
+so the release tarball and the Omarchy package don't change.
 
 ## Templates
 

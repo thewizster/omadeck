@@ -15,3 +15,4 @@ env_logger.workspace = true
 image = { version = "0.25", default-features = false, features = ["png"] }
 notify = "8"
 signal-hook = "0.4"
+serde_json.workspace = true

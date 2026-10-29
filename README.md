@@ -86,7 +86,7 @@ The script:
 - enables the `omadeckd` systemd **user** service, which starts with your graphical session;
 - if your user can't already open the deck, shows the udev rule and the exact `sudo` commands, and runs them only if you answer `y`.
 
-To remove omadeck, run `scripts/uninstall.sh`. It leaves your config in place.
+To remove omadeck, run `scripts/uninstall.sh`. It also removes the Omarchy bar widget, and leaves your config in place.
 
 ### Supported hardware
 
@@ -132,6 +132,14 @@ A key can also do something when you let go of it: set **When released** in the 
 push-to-talk: hold it, speak to your AI agent, let go. If the deck is unplugged or the service
 stops while you're holding a key, it's let go then, so nothing stays switched on.
 
+### Omarchy bar
+
+*New in 0.3.0, not released yet.*
+
+On Omarchy, the app offers once to add an omadeck icon to the bar. It shows whether your deck
+is connected and which page it's on, and opens omadeck when clicked. Turn it on or off any time
+with **Show in Omarchy bar** in the app's settings (or `omarchy plugin disable dev.omadeck`).
+
 ### Command line
 
 ```text
@@ -139,6 +147,7 @@ omadeckd                        run the daemon (normally via systemd)
 omadeckd list                   show connected decks
 omadeckd press 3 [PAGE]         run key 3's action, then its release action (keys count from 0)
 omadeckd snapshot x.png [PAGE]  render the layout to an image
+omadeckd status [--follow]      the deck's state as Waybar-style JSON (keeps printing with --follow)
 ```
 
 `omadeckd press` is handy in Hyprland bindings and scripts, for example to share one action between a key and a keyboard shortcut.
@@ -234,7 +243,7 @@ Ideas, roughly in order; [docs/ROADMAP.md](docs/ROADMAP.md) has the details. Wan
 
 - [x] **Pages and folders** (0.2.0)
 - [x] **Release actions**: keys that act on release too, for push-to-talk dictation (done, coming in 0.3.0)
-- [ ] **Omarchy bar widget**: deck status on the bar, one click to the app (can be turned off)
+- [x] **Omarchy bar widget**: deck status on the bar, one click to the app (done, coming in 0.3.0)
 - [ ] **Templates**: ready-made pages to add in one click, starting with Omarchy Basics (your AI agent, dictation and everyday Omarchy keys); save any page as a template and share it
 - [ ] **Toggle keys** with on/off faces (mute, night light, …) that reflect real state
 - [ ] **Multi-actions**: run several actions from one key, with optional delays

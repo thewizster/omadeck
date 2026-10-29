@@ -11,6 +11,12 @@ systemctl --user daemon-reload
 rm -f "$PREFIX/bin/omadeck" "$PREFIX/bin/omadeckd"
 rm -f "$DATADIR/applications/dev.omadeck.Omadeck.desktop"
 rm -f "$DATADIR/icons/hicolor/scalable/apps/dev.omadeck.Omadeck.svg"
+# The Omarchy bar widget, if the app added it.
+BARDIR="${XDG_CONFIG_HOME:-$HOME/.config}/omarchy/plugins/dev.omadeck"
+if [[ -d $BARDIR ]]; then
+  command -v omarchy >/dev/null && omarchy plugin disable dev.omadeck >/dev/null 2>&1 || true
+  rm -rf "$BARDIR"
+fi
 if [[ -f /etc/udev/rules.d/70-omadeck.rules ]]; then
   echo "Removing udev rule (needs sudo)"
   sudo rm -f /etc/udev/rules.d/70-omadeck.rules && sudo udevadm control --reload-rules || true

@@ -71,7 +71,12 @@ impl Sender {
 
 /// Connect to a running daemon: a sender for commands, and its events until it goes away.
 pub fn connect() -> Result<(Sender, impl Iterator<Item = Event>)> {
-    let stream = UnixStream::connect(paths::socket_path()?)?;
+    connect_at(&paths::socket_path()?)
+}
+
+/// `connect`, to the daemon listening on `socket`.
+pub fn connect_at(socket: &std::path::Path) -> Result<(Sender, impl Iterator<Item = Event> + use<>)> {
+    let stream = UnixStream::connect(socket)?;
     let writer = stream.try_clone()?;
     writer.set_write_timeout(Some(Duration::from_millis(200)))?;
     let events = BufReader::new(stream).lines().map_while(|l| l.ok()).filter_map(|l| serde_json::from_str(&l).ok());

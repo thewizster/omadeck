@@ -12,7 +12,7 @@ use omadeck_core::ipc::{self, Command as DaemonCommand, Event};
 use omadeck_core::paths::FileStamp;
 use omadeck_core::{Action, Config, DeckInfo, HOME, KeyConfig, Keys, Page, Renderer, device, paths};
 
-use crate::{editor, media};
+use crate::{bar, editor, media};
 
 /// Previews are rendered larger than displayed so they stay crisp on HiDPI screens.
 const PREVIEW_PX: u32 = 192;
@@ -326,6 +326,7 @@ impl App {
         app.watch_config();
         app.show_lock();
         app.window.present();
+        app.setup_bar_widget();
         app
     }
 
@@ -945,6 +946,35 @@ impl App {
         });
         list.append(&follow);
 
+        let mut bar_row = None;
+        if bar::available() {
+            let row = adw::SwitchRow::builder()
+                .title("Show in Omarchy bar")
+                .subtitle("Your deck's status on the bar; click it to open omadeck")
+                .sensitive(false)
+                .build();
+            // Set while the switch is moved by code rather than by the user.
+            let quiet = Rc::new(Cell::new(true));
+            let (weak, q) = (Rc::downgrade(self), quiet.clone());
+            row.connect_active_notify(move |r| {
+                if q.get() {
+                    return;
+                }
+                let Some(app) = weak.upgrade() else { return };
+                let (r2, q2, on) = (r.clone(), q.clone(), r.is_active());
+                app.set_bar_widget(
+                    on,
+                    Some(Box::new(move || {
+                        q2.set(true);
+                        r2.set_active(!on);
+                        q2.set(false);
+                    })),
+                );
+            });
+            list.append(&row);
+            bar_row = Some((row, quiet));
+        }
+
         let folder =
             adw::ButtonRow::builder().title("Open config folder").end_icon_name("folder-open-symbolic").build();
         folder.connect_activated(|_| {
@@ -982,7 +1012,95 @@ impl App {
             .width_request(380)
             .build();
         content.append(&list);
-        gtk::Popover::builder().child(&content).build()
+        let popover = gtk::Popover::builder().child(&content).build();
+        if let Some((row, quiet)) = bar_row {
+            // The widget can be turned off in Omarchy too, so look each time the menu opens.
+            popover.connect_show(move |_| {
+                let (row, quiet) = (row.clone(), quiet.clone());
+                glib::spawn_future_local(async move {
+                    let on = gio::spawn_blocking(|| bar::enabled(&bar::run_command)).await;
+                    quiet.set(true);
+                    if let Ok(Ok(on)) = on {
+                        row.set_active(on);
+                    }
+                    row.set_sensitive(true);
+                    quiet.set(false);
+                });
+            });
+        }
+        popover
+    }
+
+    // --- Omarchy bar widget ---------------------------------------------------------------
+
+    /// Keep an installed widget's files current after an upgrade (without changing whether it's
+    /// on), and on the first run on Omarchy, ask once whether to add it.
+    fn setup_bar_widget(self: &Rc<Self>) {
+        if !bar::available() {
+            return;
+        }
+        if bar::plugin_dir().is_dir()
+            && let Err(e) = bar::install(&bar::plugin_dir(), &bar::daemon_path())
+        {
+            log::warn!("updating the bar widget: {e:#}");
+        }
+        let marker = bar::asked_marker();
+        if !bar::should_ask(true, &marker) {
+            return;
+        }
+        let dialog = adw::AlertDialog::builder()
+            .heading("Add omadeck to your Omarchy bar?")
+            .body(
+                "A small icon shows whether your Stream Deck is connected and which page it's on. \
+                 Click it to open omadeck. You can turn it off any time in omadeck's settings.",
+            )
+            .build();
+        dialog.add_responses(&[("later", "Not now"), ("add", "Add to bar")]);
+        dialog.set_response_appearance("add", adw::ResponseAppearance::Suggested);
+        dialog.set_default_response(Some("add"));
+        dialog.set_close_response("later");
+        let weak = Rc::downgrade(self);
+        dialog.connect_response(None, move |_, response| {
+            bar::remember_asked(&marker);
+            if response == "add"
+                && let Some(app) = weak.upgrade()
+            {
+                app.set_bar_widget(true, None);
+            }
+        });
+        dialog.present(Some(&self.window));
+    }
+
+    /// Turn the bar widget on or off without blocking the window. `undo` puts the settings
+    /// switch back if it didn't work.
+    fn set_bar_widget(self: &Rc<Self>, on: bool, undo: Option<Box<dyn Fn()>>) {
+        let weak = Rc::downgrade(self);
+        glib::spawn_future_local(async move {
+            let res = gio::spawn_blocking(move || {
+                if on {
+                    bar::install(&bar::plugin_dir(), &bar::daemon_path())?;
+                    bar::enable(&bar::run_command)
+                } else {
+                    bar::disable(&bar::run_command)
+                }
+            })
+            .await;
+            let Some(app) = weak.upgrade() else { return };
+            match res {
+                Ok(Ok(())) => app.toast(if on { "Added omadeck to your bar" } else { "Removed omadeck from your bar" }),
+                Ok(Err(e)) => {
+                    app.toast(&format!("Couldn't change the bar: {e:#}"));
+                    if let Some(undo) = undo {
+                        undo();
+                    }
+                }
+                Err(_) => {
+                    if let Some(undo) = undo {
+                        undo();
+                    }
+                }
+            }
+        });
     }
 
     fn show_about(&self) {

@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "id": "dev.omadeck",
+  "name": "omadeck",
+  "version": "@VERSION@",
+  "author": "omadeck",
+  "license": "MIT",
+  "description": "Stream Deck status in the Omarchy bar. Click to open omadeck.",
+  "kinds": ["bar-widget"],
+  "entryPoints": { "barWidget": "Widget.qml" },
+  "barWidget": {
+    "displayName": "omadeck",
+    "description": "Stream Deck status; click to open omadeck",
+    "category": "System",
+    "allowMultiple": false,
+    "defaultSection": "right"
+  }
+}

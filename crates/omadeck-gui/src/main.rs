@@ -2,6 +2,7 @@
 
 mod app;
 mod apps;
+mod bar;
 mod editor;
 mod media;
 mod starter;
