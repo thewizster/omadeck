@@ -4,6 +4,7 @@
 mod hold;
 mod hub;
 mod nav;
+mod scan;
 mod status;
 mod worker;
 
@@ -23,6 +24,7 @@ use omadeck_core::{Action, Config, DeckInfo, Renderer, action, paths};
 use hold::Hold;
 use hub::Hub;
 use nav::Nav;
+use scan::ScanLog;
 use worker::Worker;
 
 const SCAN_INTERVAL: Duration = Duration::from_secs(2);
@@ -179,6 +181,7 @@ fn run() -> Result<()> {
     let mut deck: Option<Deck> = None;
     let mut last_scan: Option<Instant> = None;
     let mut reload_at: Option<Instant> = None;
+    let mut scan_log = ScanLog::default();
 
     log::info!("omadeckd {} ready; config {}", env!("CARGO_PKG_VERSION"), paths::config_file().display());
 
@@ -268,11 +271,28 @@ fn run() -> Result<()> {
         let Some(d) = &deck else {
             if last_scan.is_none_or(|t| t.elapsed() >= SCAN_INTERVAL) {
                 last_scan = Some(Instant::now());
-                deck = connect(&mut hid, &cfg, nav.current(), &mut renderer);
-                hub.publish(match &deck {
-                    Some(d) => Event::Connected { deck: d.info.clone() },
-                    None => Event::Disconnected,
-                });
+                let event = match connect(&mut hid, &cfg, nav.current(), &mut renderer) {
+                    Scan::Opened(d) => {
+                        scan_log.cleared();
+                        let ev = Event::Connected { deck: d.info.clone() };
+                        deck = Some(d);
+                        ev
+                    }
+                    Scan::NoDeck => {
+                        scan_log.cleared();
+                        Event::Disconnected
+                    }
+                    Scan::Failed { problem, model } => {
+                        if scan_log.failed(&problem) {
+                            log::warn!("{problem}");
+                        }
+                        match model {
+                            Some(model) => Event::CantOpen { model },
+                            None => Event::Disconnected,
+                        }
+                    }
+                };
+                hub.publish(event);
             } else {
                 std::thread::sleep(READ_TIMEOUT);
             }
@@ -382,19 +402,32 @@ fn load_config() -> Config {
     }
 }
 
+/// What one look for a deck found.
+enum Scan {
+    Opened(Deck),
+    NoDeck,
+    /// Something went wrong; `model` is set when a deck is plugged in but couldn't be opened.
+    Failed {
+        problem: String,
+        model: Option<String>,
+    },
+}
+
 // elgato-streamdeck hands out its reader via `Arc<Self>`; everything stays on this thread.
 #[allow(clippy::arc_with_non_send_sync)]
-fn connect(hid: &mut HidApi, cfg: &Config, page: Option<&str>, renderer: &mut Renderer) -> Option<Deck> {
+fn connect(hid: &mut HidApi, cfg: &Config, page: Option<&str>, renderer: &mut Renderer) -> Scan {
     if let Err(e) = device::refresh_device_list(hid) {
-        log::warn!("hidapi refresh: {e}");
-        return None;
+        return Scan::Failed { problem: format!("hidapi refresh: {e}"), model: None };
     }
-    let (kind, serial) = device::list_devices(hid).into_iter().find(|(k, _)| k.is_visual())?;
+    let Some((kind, serial)) = device::list_devices(hid).into_iter().find(|(k, _)| k.is_visual()) else {
+        return Scan::NoDeck;
+    };
     let dev = match StreamDeck::connect(hid, kind, &serial) {
         Ok(d) => Arc::new(d),
         Err(e) => {
-            log::warn!("found {} but could not open it: {e} (is the udev rule installed?)", device::model_name(kind));
-            return None;
+            let model = device::model_name(kind).to_string();
+            let problem = format!("found {model} but could not open it: {e} (is the udev rule installed?)");
+            return Scan::Failed { problem, model: Some(model) };
         }
     };
     let reader = dev.get_reader();
@@ -408,7 +441,7 @@ fn connect(hid: &mut HidApi, cfg: &Config, page: Option<&str>, renderer: &mut Re
     if let Err(e) = paint_all(&deck, cfg, page, renderer) {
         log::warn!("initial paint failed: {e}");
     }
-    Some(deck)
+    Scan::Opened(deck)
 }
 
 /// Repaint the deck after `nav` moved to another page, and tell the configurators.

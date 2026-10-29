@@ -21,6 +21,11 @@ pub enum Event {
     },
     /// Sent on connect when no deck is attached, and on unplug.
     Disconnected,
+    /// A deck is plugged in but can't be opened: usually the udev rule is missing, or another
+    /// program has it. Sent on connect while that's the case.
+    CantOpen {
+        model: String,
+    },
     /// Sent on connect and whenever the deck shows another page (`None` is home).
     PageChanged {
         page: Option<String>,

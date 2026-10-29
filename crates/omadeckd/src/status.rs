@@ -17,6 +17,8 @@ pub struct Status {
     running: bool,
     /// The connected deck's model.
     deck: Option<String>,
+    /// A deck that's plugged in but can't be opened.
+    cant_open: Option<String>,
     page: Option<String>,
 }
 
@@ -26,10 +28,17 @@ impl Status {
             Event::Connected { deck } => {
                 self.running = true;
                 self.deck = Some(deck.model.clone());
+                self.cant_open = None;
             }
             Event::Disconnected => {
                 self.running = true;
                 self.deck = None;
+                self.cant_open = None;
+            }
+            Event::CantOpen { model } => {
+                self.running = true;
+                self.deck = None;
+                self.cant_open = Some(model.clone());
             }
             Event::PageChanged { page } => {
                 self.running = true;
@@ -42,6 +51,13 @@ impl Status {
     pub fn to_line(&self) -> String {
         let (class, tooltip) = match (&self.deck, self.running) {
             (_, false) => ("stopped", "omadeck: the service isn't running".to_string()),
+            (None, true) if self.cant_open.is_some() => (
+                "cant_open",
+                format!(
+                    "omadeck: can't open the {}. Replug it, or install the udev rule",
+                    self.cant_open.as_deref().unwrap_or_default()
+                ),
+            ),
             (None, true) => ("disconnected", "omadeck: no Stream Deck connected".to_string()),
             (Some(model), true) => {
                 ("connected", format!("omadeck: {model}, page {}", self.page.as_deref().unwrap_or(HOME)))
@@ -128,6 +144,16 @@ mod tests {
         assert_eq!(parse(&s.to_line()), ("connected".into(), "omadeck: Stream Deck (V2), page Home".into()));
         s.apply(&Event::Disconnected);
         assert_eq!(parse(&s.to_line()).0, "disconnected", "unplugging is noticed");
+        s.apply(&Event::CantOpen { model: "Stream Deck (V2)".into() });
+        assert_eq!(
+            parse(&s.to_line()),
+            (
+                "cant_open".into(),
+                "omadeck: can't open the Stream Deck (V2). Replug it, or install the udev rule".into()
+            )
+        );
+        s.apply(&Event::Connected { deck: deck() });
+        assert_eq!(parse(&s.to_line()).0, "connected", "fixed");
     }
 
     #[test]

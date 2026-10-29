@@ -63,6 +63,8 @@ pub struct App {
     pub renderer: RefCell<Renderer>,
     deck: RefCell<DeckInfo>,
     connected: Cell<bool>,
+    /// A deck the daemon found but can't open (usually the udev rule is missing).
+    cant_open: RefCell<Option<String>>,
     daemon_up: Cell<bool>,
     selected: Cell<Option<u8>>,
     save_source: RefCell<Option<glib::SourceId>>,
@@ -246,6 +248,7 @@ impl App {
             renderer: RefCell::new(renderer),
             deck: RefCell::new(deck),
             connected: Cell::new(false),
+            cant_open: RefCell::new(None),
             daemon_up: Cell::new(false),
             selected: Cell::new(None),
             save_source: RefCell::default(),
@@ -1184,6 +1187,7 @@ impl App {
             }
             Msg::Event(Event::Connected { deck }) => {
                 self.connected.set(true);
+                self.cant_open.borrow_mut().take();
                 let relayout = {
                     let cur = self.deck.borrow();
                     cur.rows != deck.rows || cur.cols != deck.cols || cur.model != deck.model
@@ -1193,7 +1197,14 @@ impl App {
                     self.rebuild_grid();
                 }
             }
-            Msg::Event(Event::Disconnected) => self.connected.set(false),
+            Msg::Event(Event::Disconnected) => {
+                self.connected.set(false);
+                self.cant_open.borrow_mut().take();
+            }
+            Msg::Event(Event::CantOpen { model }) => {
+                self.connected.set(false);
+                *self.cant_open.borrow_mut() = Some(model);
+            }
             // Follow the deck: pressing a page key there shows that page here too.
             Msg::Event(Event::PageChanged { page }) => self.show_page(page, false),
             Msg::Event(Event::KeyDown { index, page }) => {
@@ -1222,6 +1233,8 @@ impl App {
             "Service not running".to_string()
         } else if self.connected.get() {
             format!("{} · connected", self.deck.borrow().model)
+        } else if let Some(model) = self.cant_open.borrow().as_deref() {
+            format!("Can't open the {model}: replug it, or see Troubleshooting in the README")
         } else {
             "Waiting for a Stream Deck…".to_string()
         };

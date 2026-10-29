@@ -103,7 +103,7 @@ impl Hub {
         let line = ev.to_line();
         let mut g = self.inner.lock().unwrap();
         match ev {
-            Event::Connected { .. } | Event::Disconnected => g.status = ev,
+            Event::Connected { .. } | Event::Disconnected | Event::CantOpen { .. } => g.status = ev,
             Event::PageChanged { .. } => g.page = ev,
             _ => {}
         }
@@ -207,6 +207,18 @@ mod tests {
             assert!(Instant::now() < deadline, "the command never arrived");
             std::thread::sleep(Duration::from_millis(5));
         }
+        hub.shutdown();
+    }
+
+    #[test]
+    fn a_deck_that_cant_be_opened_is_replayed_to_new_windows() {
+        let path = socket("cantopen");
+        let hub = Hub::start(path.clone()).unwrap();
+        hub.publish(Event::CantOpen { model: "Stream Deck (V2)".into() });
+        let stream = UnixStream::connect(&path).unwrap();
+        stream.set_read_timeout(Some(Duration::from_secs(2))).unwrap();
+        let first = BufReader::new(stream).lines().next().unwrap().unwrap();
+        assert_eq!(first, Event::CantOpen { model: "Stream Deck (V2)".into() }.to_line().trim_end());
         hub.shutdown();
     }
 
