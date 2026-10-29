@@ -235,22 +235,8 @@ impl Renderer {
     fn draw_line(&self, img: &mut RgbaImage, text: &str, px: f32, cy: f32, color: Rgb, shadow: bool) {
         let Some(font) = &self.font else { return };
         let max_w = img.width() as f32 * 0.92;
-        let mut px = px;
         let min_px = img.width() as f32 * 0.11;
-        while px > min_px && Self::text_width(font, px, text) > max_w {
-            px -= 0.5;
-        }
-        let mut text = text.to_string();
-        if Self::text_width(font, px, &text) > max_w {
-            let chars: Vec<char> = text.chars().collect();
-            for n in (1..chars.len()).rev() {
-                let cand = format!("{}…", chars[..n].iter().collect::<String>().trim_end());
-                if Self::text_width(font, px, &cand) <= max_w || n == 1 {
-                    text = cand;
-                    break;
-                }
-            }
-        }
+        let (px, text) = fit_line(text, px, min_px, max_w, |px, t| Self::text_width(font, px, t));
         let w = Self::text_width(font, px, &text);
         let sf = font.as_scaled(PxScale::from(px));
         let baseline = cy + (sf.ascent() + sf.descent()) / 2.0;
@@ -361,6 +347,49 @@ fn solid(size: u32, c: Rgb) -> RgbaImage {
 }
 
 /// Load a raster or SVG icon and fit it inside a `box_px` square, preserving aspect ratio.
+/// Labels are cut to this many characters before fitting; a key shows far fewer.
+const MAX_LABEL_CHARS: usize = 64;
+
+/// The size and text to draw one label line with: shrink from `px` in half-pixel steps until it
+/// fits `max_w` (stopping at `min_px`), then, if it still doesn't fit, cut it short with "…".
+/// `width` measures a text at a size.
+///
+/// Both searches are binary, since a text only gets wider as it grows or its size does, and the
+/// text is cut to `MAX_LABEL_CHARS` first: a key shows far fewer, and measuring a pasted page of
+/// text at every step used to take seconds per key.
+fn fit_line(text: &str, px: f32, min_px: f32, max_w: f32, width: impl Fn(f32, &str) -> f32) -> (f32, String) {
+    let text: String = text.chars().take(MAX_LABEL_CHARS).collect();
+    // Half-pixel steps down from `px`; stop at the first that fits, or once at or below `min_px`.
+    let size = |step: usize| px - 0.5 * step as f32;
+    let last = if px > min_px { ((px - min_px) / 0.5).ceil() as usize } else { 0 };
+    let step = first_true(0, last, |k| size(k) <= min_px || width(size(k), &text) <= max_w);
+    let px = size(step);
+    if width(px, &text) <= max_w {
+        return (px, text);
+    }
+    let chars: Vec<char> = text.chars().collect();
+    if chars.len() < 2 {
+        return (px, text);
+    }
+    let cut = |n: usize| format!("{}…", chars[..n].iter().collect::<String>().trim_end());
+    // The longest cut that fits, or one character if none does: one past it is the first that
+    // doesn't (or the whole text, which is known not to fit).
+    let longest = chars.len() - 1;
+    let first_too_wide = first_true(1, longest + 1, |n| n > longest || width(px, &cut(n)) > max_w);
+    let n = first_too_wide.saturating_sub(1).max(1);
+    (px, cut(n))
+}
+
+/// The smallest `k` in `lo..=hi` for which `pred` holds, `pred` being false and then true;
+/// `hi` if it never holds before.
+fn first_true(mut lo: usize, mut hi: usize, pred: impl Fn(usize) -> bool) -> usize {
+    while lo < hi {
+        let mid = lo + (hi - lo) / 2;
+        if pred(mid) { hi = mid } else { lo = mid + 1 }
+    }
+    lo
+}
+
 pub fn load_icon(path: &Path, box_px: u32) -> Option<RgbaImage> {
     let is_svg = path
         .extension()
@@ -453,6 +482,78 @@ mod tests {
 
     fn temp_png(name: &str) -> PathBuf {
         std::env::temp_dir().join(format!("omadeck-test-{}-{name}.png", std::process::id()))
+    }
+
+    /// A stand-in for measuring text with a font: each character is 0.6 em wide, a space 0.3,
+    /// and the cost grows with the text's length, as the real measurement's does.
+    fn width(px: f32, text: &str) -> f32 {
+        text.chars().map(|c| if c == ' ' { 0.3 } else { 0.6 }).sum::<f32>() * px
+    }
+
+    /// `fit_line` as it was in 0.2.0, to compare against.
+    fn fit_line_0_2(text: &str, px: f32, min_px: f32, max_w: f32) -> (f32, String) {
+        let mut px = px;
+        while px > min_px && width(px, text) > max_w {
+            px -= 0.5;
+        }
+        let mut text = text.to_string();
+        if width(px, &text) > max_w {
+            let chars: Vec<char> = text.chars().collect();
+            for n in (1..chars.len()).rev() {
+                let cand = format!("{}…", chars[..n].iter().collect::<String>().trim_end());
+                if width(px, &cand) <= max_w || n == 1 {
+                    text = cand;
+                    break;
+                }
+            }
+        }
+        (px, text)
+    }
+
+    #[test]
+    fn a_20000_character_label_fits_quickly() {
+        // B9: fitting was quadratic, so pasting a long text froze the app and stalled the deck.
+        let label = "word ".repeat(4000);
+        let start = std::time::Instant::now();
+        let (_, text) = fit_line(&label, 13.0, 7.9, 66.0, width);
+        let took = start.elapsed();
+        assert!(text.ends_with('…'));
+        assert!(took < std::time::Duration::from_millis(50), "took {took:?}");
+    }
+
+    #[test]
+    fn short_labels_fit_exactly_as_before() {
+        let mut labels: Vec<String> = [
+            "",
+            "A",
+            "Vol +",
+            "Terminal",
+            "Workspace 1",
+            "Next wallpaper",
+            "Screenshot region",
+            "Night light toggle",
+            "a b c d e f g h i j",
+            "Supercalifragilistic",
+            "Ünïcödé ✓ ok",
+            "trailing spaces    end",
+        ]
+        .map(String::from)
+        .to_vec();
+        labels.push("x".repeat(70));
+        labels.push("word ".repeat(30));
+        // Key sizes from the Mini (80) to the XL (96), with each deck's label size and limits.
+        for key in [72.0_f32, 80.0, 96.0] {
+            for px in [key * 0.18, key * 0.2, key * 0.25, 13.0, 14.4] {
+                for label in &labels {
+                    let (min_px, max_w) = (key * 0.11, key * 0.92);
+                    assert_eq!(
+                        fit_line(label, px, min_px, max_w, width),
+                        fit_line_0_2(label, px, min_px, max_w),
+                        "{label:?} at {px} px on a {key} px key"
+                    );
+                }
+            }
+        }
     }
 
     #[test]
