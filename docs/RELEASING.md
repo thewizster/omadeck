@@ -52,3 +52,57 @@ cp packaging/aur/omadeck-bin/omadeck.install aur-omadeck-bin/
 ```
 
 Running `makepkg -f` before each push makes sure the package really builds.
+
+## 4. Update the Omarchy package
+
+`omadeck-bin` in [omacom/omarchy-pkgs](https://github.com/omacom/omarchy-pkgs) repackages the
+release tarball. Its `.omarchy/package.json` watches this repo's GitHub releases, and its
+`package()` copies files from fixed paths in the tarball. So every release must keep:
+
+- the tag format `vX.Y.Z`, and the asset name `omadeck-X.Y.Z-x86_64-linux.tar.gz`;
+- `SHA256SUMS` beside it;
+- the tarball's layout (`bin/`, `packaging/`, `assets/`, `examples/`, `LICENSE` under
+  `omadeck-X.Y.Z-x86_64-linux/`).
+
+Before tagging, check the layout against the previous release:
+
+```bash
+gh release download vPREVIOUS -p '*.tar.gz' -D /tmp/omadeck-prev
+scripts/package.sh
+diff <(tar tzf /tmp/omadeck-prev/*.tar.gz | sed 's|^[^/]*/||') \
+     <(tar tzf dist/omadeck-*.tar.gz | sed 's|^[^/]*/||')   # prints nothing
+```
+
+If a release needs a new system package at runtime, add it to the `depends` of the Omarchy
+package (and of `packaging/aur/*`) in the same update, and say so in the PR.
+
+**Once the package is in omarchy-pkgs:** nothing to do. Their bot sees the new release and
+opens the update PR itself.
+
+**While its PR is still open:** refresh it once per release, as one small commit on top. In
+the omarchy-pkgs clone, `origin` is omacom and `fork` is ours. Test with current master's
+tooling, not the branch's:
+
+```bash
+cd ~/Work/omarchy-pkgs
+git checkout add-omadeck-bin && git pull --ff-only fork add-omadeck-bin
+git fetch origin master
+git worktree add ../omarchy-pkgs-test origin/master
+rm -rf ../omarchy-pkgs-test/pkgbuilds/omadeck-bin
+cp -r pkgbuilds/omadeck-bin ../omarchy-pkgs-test/pkgbuilds/
+cd ../omarchy-pkgs-test
+python helpers/upstream-watch.py sync pkgbuilds/omadeck-bin    # moves pkgver and the checksum
+python helpers/upstream-watch.py check pkgbuilds/omadeck-bin   # "already current"
+tests/pinned-sources.sh && tests/package-metadata.sh            # PASS
+bin/build --package omadeck-bin                                # Built: 1, Failed: 0 (needs Docker)
+cp pkgbuilds/omadeck-bin/PKGBUILD ../omarchy-pkgs/pkgbuilds/omadeck-bin/
+cd ../omarchy-pkgs && git worktree remove --force ../omarchy-pkgs-test
+git diff                                                       # only pkgver and sha256sums
+git commit -am "omadeck-bin: update to X.Y.Z"
+git push fork add-omadeck-bin                                  # a normal push
+```
+
+Then update the version in the PR description, and post one short comment ("Updated to
+omadeck X.Y.Z: …, built with `bin/build` against current master"), with no @-mentions.
+Never force-push, rebase, or click "Update branch": one commit per release keeps the history
+easy to review.
